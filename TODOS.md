@@ -1,0 +1,64 @@
+# TODOs
+
+## Critical — Must fix before playable
+
+- [ ] **Lobby→Game handoff bug**: `GameScene.connectToGame()` calls `client.create('game')` which creates a new room per client. Need to either create the GameRoom server-side and pass the room ID to clients, or have one client create and others join by ID.
+- [ ] **Colyseus schema registration**: Client-side state listeners use `any` types. Need to verify schema classes are properly registered on the client or use Colyseus schema codegen.
+
+## Phase 1 — Walking Around Together
+
+- [ ] Fix lobby→game transition so all players join the same GameRoom
+- [ ] Verify click-to-move works with multiple players seeing each other
+- [ ] Tune client-side interpolation (lerp factor, buffer server states)
+- [ ] Add camera zoom controls (scroll wheel)
+- [ ] Handle browser tab close / disconnect gracefully
+
+## Phase 2 — Central Objective
+
+- [ ] Verify auto-attack triggers when player walks into range of objective
+- [ ] Test damage tracking per team shows correctly on HUD
+- [ ] Implement segmented HP bar on objective (currently renders but untested)
+- [ ] Add victory screen with "Play Again" / "Return to Lobby" options
+- [ ] Test win condition: objective destroyed → correct team wins
+
+## Phase 3 — Bases & Elimination
+
+- [ ] Test base destruction eliminates a team
+- [ ] Test eliminated team's players can't respawn
+- [ ] Test last-team-standing win condition
+- [ ] Test both win conditions work together (edge cases)
+- [ ] Visual feedback for base under attack
+
+## Phase 4 — Minions
+
+- [ ] Verify minion spawning every 30 seconds
+- [ ] Test minion pathfinding (currently walks straight to center — no obstacle avoidance)
+- [ ] Test minion aggro and target acquisition
+- [ ] Test minion interaction with objective and bases
+- [ ] Integrate pathfinding.js for proper grid-based pathing when map has walls
+
+## Phase 5 — Hero Ability & Combat Feel
+
+- [ ] Implement one active ability (skillshot or AOE)
+- [ ] Cooldown system and HUD indicator
+- [ ] Player death and respawn with increasing timers
+- [ ] Health bars above all units
+- [ ] Damage numbers (floating text)
+- [ ] Death animations
+
+## Phase 6 — Real Map & Art
+
+- [ ] Design map slice in Tiled
+- [ ] Implement map generation from slice template
+- [ ] Replace placeholder circles with sprite art
+- [ ] Minimap rendering
+- [ ] Lobby UI polish
+
+## Tech Debt / Improvements
+
+- [ ] Replace `any` types in client state listeners with proper Colyseus schema types
+- [ ] Add error handling for WebSocket disconnects
+- [ ] Add reconnection support
+- [ ] Client-side prediction for local player movement
+- [ ] Server-side validation of move targets (bounds checking, speed hacking prevention)
+- [ ] Consider code-splitting Phaser to reduce bundle size (1.5MB)
