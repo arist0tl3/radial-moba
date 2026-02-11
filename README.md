@@ -55,3 +55,10 @@ Server runs on `http://localhost:2567`, client on `http://localhost:3000`.
 ## Status
 
 Early MVP. See [TODOS.md](./TODOS.md) for the full task list and [CHANGELOG.md](./CHANGELOG.md) for what's been built so far.
+
+## Screenshots
+
+### Feb 11, 2026
+
+<img width="780" height="551" alt="image" src="https://github.com/user-attachments/assets/a3866fe0-a637-435d-ad4f-2340dace4e00" />
+
