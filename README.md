@@ -1,0 +1,57 @@
+# Radial MOBA
+
+A free, browser-based multiplayer online battle arena where 2–9 teams spawn around the edges of a radial map and fight inward toward a central objective. No downloads, no installs — send a link, join a game.
+
+## How it works
+
+The map is a circle divided into equal slices. Each team gets a slice with a base at the outer edge and a lane pointing inward. A central objective sits in the middle with a large HP pool. The team that deals the most damage to it — or destroys all competing bases — wins.
+
+## Tech stack
+
+| Layer | Tool |
+|-------|------|
+| Game server | [Colyseus](https://colyseus.io/) (Node.js) |
+| Client rendering | [Phaser 3](https://phaser.io/) |
+| Client bundler | [Vite](https://vite.dev/) |
+| Language | TypeScript |
+
+## Getting started
+
+```bash
+# Install dependencies (--strict-ssl=false may be needed depending on your environment)
+cd server && npm install
+cd ../client && npm install
+
+# Sync shared constants from server to client
+cd .. && ./sync.sh
+
+# Terminal 1 — start the server
+cd server && npm run dev
+
+# Terminal 2 — start the client
+cd client && npm run dev
+```
+
+Server runs on `http://localhost:2567`, client on `http://localhost:3000`.
+
+## Project structure
+
+```
+├── server/          # Colyseus game server
+│   └── src/
+│       ├── rooms/   # LobbyRoom, GameRoom
+│       ├── state/   # Colyseus schema definitions
+│       ├── systems/ # Movement, Combat, MinionAI, WinCondition
+│       └── shared/  # Constants (source of truth)
+├── client/          # Phaser 3 + Vite client
+│   └── src/
+│       ├── scenes/  # Lobby, Game, HUD
+│       ├── entities/# Player, Minion, Objective sprites
+│       ├── network/ # Colyseus client wrapper
+│       └── shared/  # Constants (synced copy)
+└── sync.sh          # Copies shared/ from server to client
+```
+
+## Status
+
+Early MVP. See [TODOS.md](./TODOS.md) for the full task list and [CHANGELOG.md](./CHANGELOG.md) for what's been built so far.
