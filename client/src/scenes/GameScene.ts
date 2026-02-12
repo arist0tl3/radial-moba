@@ -19,6 +19,7 @@ export class GameScene extends Phaser.Scene {
   private myTeamIndex: number = 0;
   private gameRoomId: string = '';
   private mapBackground!: Phaser.GameObjects.Graphics;
+  private disconnectOverlay: Phaser.GameObjects.Container | null = null;
 
   constructor() {
     super({ key: 'GameScene' });
@@ -131,6 +132,14 @@ export class GameScene extends Phaser.Scene {
       // Launch HUD scene on top
       this.scene.launch('HUDScene', { teamIndex: this.myTeamIndex });
 
+      // Disconnect / reconnect handling
+      networkClient.onDisconnect = () => {
+        this.showDisconnectOverlay();
+      };
+      networkClient.onReconnect = () => {
+        this.hideDisconnectOverlay();
+      };
+
       // Game over handler
       room.onMessage('gameOver', (data: { winnerTeam: number }) => {
         const winText = data.winnerTeam === this.myTeamIndex ? 'VICTORY!' : `Team ${data.winnerTeam + 1} Wins`;
@@ -174,5 +183,34 @@ export class GameScene extends Phaser.Scene {
         circle.setAlpha(0.2);
       }
     });
+  }
+
+  private showDisconnectOverlay() {
+    if (this.disconnectOverlay) return;
+
+    const cx = this.cameras.main.width / 2;
+    const cy = this.cameras.main.height / 2;
+
+    const bg = this.add.rectangle(0, 0, this.cameras.main.width, this.cameras.main.height, 0x000000, 0.6);
+    const text = this.add.text(0, -20, 'Connection lost', {
+      fontSize: '28px',
+      color: '#ff4444',
+      fontStyle: 'bold',
+    }).setOrigin(0.5);
+    const subText = this.add.text(0, 20, 'Reconnecting...', {
+      fontSize: '18px',
+      color: '#aaaaaa',
+    }).setOrigin(0.5);
+
+    this.disconnectOverlay = this.add.container(cx, cy, [bg, text, subText]);
+    this.disconnectOverlay.setScrollFactor(0);
+    this.disconnectOverlay.setDepth(200);
+  }
+
+  private hideDisconnectOverlay() {
+    if (this.disconnectOverlay) {
+      this.disconnectOverlay.destroy();
+      this.disconnectOverlay = null;
+    }
   }
 }

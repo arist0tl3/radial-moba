@@ -95,13 +95,34 @@ export class GameRoom extends Room<GameState> {
     }
   }
 
-  onLeave(client: Client) {
+  async onLeave(client: Client, consented: boolean) {
     const player = this.state.players.get(client.sessionId);
-    if (player) {
-      player.alive = false;
+
+    // If the player intentionally left, don't wait for reconnection
+    if (consented || this.state.phase === 'finished') {
+      if (player) player.alive = false;
+      this.inputQueue.delete(client.sessionId);
+      return;
     }
-    this.inputQueue.delete(client.sessionId);
-    // Don't remove from state — allows reconnection later
+
+    // Allow 30 seconds for reconnection (tab refresh, brief network drop)
+    try {
+      if (player) player.alive = false;
+
+      const reconnection = this.allowReconnection(client, 30);
+      const reconnectedClient = await reconnection;
+
+      // Player reconnected — restore them
+      if (player) {
+        player.alive = true;
+        // If they died while disconnected and respawned, they'll be at base
+        // If not, they resume where they were
+        this.inputQueue.set(reconnectedClient.sessionId, []);
+      }
+    } catch {
+      // Reconnection timed out — player is gone for good
+      this.inputQueue.delete(client.sessionId);
+    }
   }
 
   private initializeMap() {
