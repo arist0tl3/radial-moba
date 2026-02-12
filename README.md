@@ -52,6 +52,13 @@ Server runs on `http://localhost:2567`, client on `http://localhost:3000`.
 └── sync.sh          # Copies shared/ from server to client
 ```
 
+## Asset Acknowledgements
+
+This project uses the following free asset packs:
+
+- **[Tiny RPG Character Asset Pack](https://zerie.itch.io/tiny-rpg-character-asset-pack)** by Zerie — Soldier and Orc spritesheets used for player and minion animations
+- **[Pixel Art Top Down - Basic](https://cainos.itch.io/pixel-art-top-down-basic)** by Cainos — Props and structure sprites used for bases and the central objective
+
 ## Status
 
 Early MVP. See [TODOS.md](./TODOS.md) for the full task list and [CHANGELOG.md](./CHANGELOG.md) for what's been built so far.

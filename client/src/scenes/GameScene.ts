@@ -8,7 +8,6 @@ import {
   TEAM_COLORS,
   TEAM_COLOR_STRINGS,
   NUM_TEAMS,
-  BASE_RADIUS,
 } from '../shared/constants';
 
 interface GameOverData {
@@ -20,7 +19,7 @@ export class GameScene extends Phaser.Scene {
   private playerSprites: Map<string, PlayerSprite> = new Map();
   private minionSprites: Map<string, MinionSprite> = new Map();
   private objectiveSprite: ObjectiveSprite | null = null;
-  private baseSprites: Map<string, Phaser.GameObjects.Arc> = new Map();
+  private baseSprites: Map<string, Phaser.GameObjects.Sprite> = new Map();
   private myTeamIndex: number = 0;
   private gameRoomId: string = '';
   private mapBackground!: Phaser.GameObjects.Graphics;
@@ -131,9 +130,11 @@ export class GameScene extends Phaser.Scene {
       // Bases
       room.state.bases.onAdd((base: any, key: string) => {
         const color = TEAM_COLORS[base.teamIndex] ?? 0x888888;
-        const circle = this.add.circle(base.x, base.y, BASE_RADIUS, color, 0.6);
-        circle.setStrokeStyle(2, color, 1);
-        this.baseSprites.set(key, circle);
+        const baseSprite = this.add.sprite(base.x, base.y, 'statue');
+        baseSprite.setTint(color);
+        baseSprite.setScale(2.5);
+        baseSprite.setDepth(3);
+        this.baseSprites.set(key, baseSprite);
       });
 
       // Launch HUD scene on top
@@ -178,9 +179,10 @@ export class GameScene extends Phaser.Scene {
 
     // Update base visuals (destroyed state)
     room.state.bases.forEach((base: any, key: string) => {
-      const circle = this.baseSprites.get(key);
-      if (circle && base.destroyed) {
-        circle.setAlpha(0.2);
+      const baseSprite = this.baseSprites.get(key);
+      if (baseSprite && base.destroyed) {
+        baseSprite.setAlpha(0.2);
+        baseSprite.setTint(0x444444);
       }
     });
   }
