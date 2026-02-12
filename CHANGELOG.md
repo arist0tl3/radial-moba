@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.2.0] - 2026-02-11
+
+### Fixed
+
+- **Lobby→Game handoff**: All lobby players now join the same GameRoom. LobbyRoom creates the game server-side via `matchMaker.createRoom()` and broadcasts the `gameRoomId` to clients, who join via `joinById()`.
+- **Objective sprite not rendering**: Changed from `room.state.listen('objective', ...)` to direct creation from `room.state.objective` after connecting, since the listen callback wasn't firing for initial state.
+- **Room link not copyable**: Replaced Phaser text with a DOM `<input>` + COPY button overlay so room links can be selected, copied, and pasted.
+
+### Added
+
+- **Camera zoom**: Scroll wheel to zoom in/out (0.3x–2x) on GameScene.
+- **Improved objective HP bar**: 200px wide, 12px tall with team-colored damage segments, dark background, and white border.
+- **Disconnect handling (network drop)**: Server allows 30-second reconnection window via `allowReconnection(client, 30)`. Client detects abnormal disconnects (`onLeave` code !== 1000), shows a "Connection lost / Reconnecting..." overlay, and retries up to 5 times using the Colyseus reconnection token.
+- **Disconnect handling (browser refresh)**: Stores `reconnectionToken`, `gameRoomId`, and `teamIndex` in `sessionStorage`. On page load, LobbyScene checks for stored session data and attempts to reconnect — if successful, skips the lobby and goes straight to GameScene. Session data is cleared on intentional leave or game over.
+
+### Changed
+
+- `ColyseusClient.joinGame()` now takes a `gameRoomId` parameter and uses `joinById()` instead of `create()`.
+- `GameScene.init()` now receives `gameRoomId` from LobbyScene data.
+- `LobbyScene` passes team assignment and game room ID through to GameScene on game start.
+
 ## [0.1.0] - 2026-02-11
 
 ### Added
@@ -29,7 +50,5 @@
 
 ### Known Issues
 
-- Lobby→game handoff creates separate game rooms per client (players can't see each other)
 - Client state listeners use `any` types instead of proper Colyseus schema types
 - No obstacle avoidance for minion pathfinding (walks straight to center)
-- No reconnection handling on disconnect
