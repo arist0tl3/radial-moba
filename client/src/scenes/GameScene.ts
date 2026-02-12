@@ -115,12 +115,10 @@ export class GameScene extends Phaser.Scene {
         this.minionSprites.delete(key);
       });
 
-      // Central objective
-      room.state.listen('objective', (objective: any) => {
-        if (!this.objectiveSprite) {
-          this.objectiveSprite = new ObjectiveSprite(this, objective);
-        }
-      });
+      // Central objective — create sprite immediately from initial state
+      if (room.state.objective) {
+        this.objectiveSprite = new ObjectiveSprite(this, room.state.objective);
+      }
 
       // Bases
       room.state.bases.onAdd((base: any, key: string) => {
