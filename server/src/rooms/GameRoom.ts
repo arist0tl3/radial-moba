@@ -217,7 +217,14 @@ export class GameRoom extends Room<GameState> {
     if (winner !== null) {
       this.state.phase = 'finished';
       this.state.winnerTeam = String(winner);
-      this.broadcast('gameOver', { winnerTeam: winner });
+
+      // Collect per-team damage stats for the victory screen
+      const damageByTeam: Record<string, number> = {};
+      this.state.objective.damageByTeam.forEach((dmg, teamIdx) => {
+        damageByTeam[teamIdx] = dmg;
+      });
+
+      this.broadcast('gameOver', { winnerTeam: winner, damageByTeam });
       if (this.gameLoopInterval) {
         clearInterval(this.gameLoopInterval);
         this.gameLoopInterval = null;

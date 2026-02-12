@@ -11,6 +11,11 @@ import {
   BASE_RADIUS,
 } from '../shared/constants';
 
+interface GameOverData {
+  winnerTeam: number;
+  damageByTeam: Record<string, number>;
+}
+
 export class GameScene extends Phaser.Scene {
   private playerSprites: Map<string, PlayerSprite> = new Map();
   private minionSprites: Map<string, MinionSprite> = new Map();
@@ -20,6 +25,7 @@ export class GameScene extends Phaser.Scene {
   private gameRoomId: string = '';
   private mapBackground!: Phaser.GameObjects.Graphics;
   private disconnectOverlay: Phaser.GameObjects.Container | null = null;
+  private gameOver: boolean = false;
 
   constructor() {
     super({ key: 'GameScene' });
@@ -40,6 +46,7 @@ export class GameScene extends Phaser.Scene {
 
     // Click-to-move input
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      if (this.gameOver) return;
       const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
       networkClient.sendInput({
         type: 'move',
@@ -141,17 +148,9 @@ export class GameScene extends Phaser.Scene {
       };
 
       // Game over handler
-      room.onMessage('gameOver', (data: { winnerTeam: number }) => {
+      room.onMessage('gameOver', (data: GameOverData) => {
         networkClient.clearSession(); // Game is over, no need to reconnect
-        const winText = data.winnerTeam === this.myTeamIndex ? 'VICTORY!' : `Team ${data.winnerTeam + 1} Wins`;
-        const color = data.winnerTeam === this.myTeamIndex ? '#44ff44' : '#ff4444';
-        const text = this.add.text(MAP_RADIUS, MAP_RADIUS, winText, {
-          fontSize: '64px',
-          color,
-          fontStyle: 'bold',
-          stroke: '#000000',
-          strokeThickness: 4,
-        }).setOrigin(0.5).setScrollFactor(0).setDepth(100);
+        this.showVictoryScreen(data);
       });
     } catch (err) {
       console.error('Failed to join game:', err);
@@ -184,6 +183,92 @@ export class GameScene extends Phaser.Scene {
         circle.setAlpha(0.2);
       }
     });
+  }
+
+  private showVictoryScreen(data: GameOverData) {
+    this.gameOver = true;
+
+    const camW = this.cameras.main.width;
+    const camH = this.cameras.main.height;
+    const cx = camW / 2;
+    const cy = camH / 2;
+    const depth = 150;
+
+    // Semi-transparent backdrop
+    this.add.rectangle(cx, cy, camW, camH, 0x000000, 0.75)
+      .setScrollFactor(0).setDepth(depth);
+
+    // Victory / Defeat heading
+    const isWinner = data.winnerTeam === this.myTeamIndex;
+    const headingText = isWinner ? 'VICTORY!' : 'DEFEAT';
+    const headingColor = isWinner ? '#44ff44' : '#ff4444';
+    this.add.text(cx, cy - 120, headingText, {
+      fontSize: '64px',
+      color: headingColor,
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 6,
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(depth);
+
+    // Winning team label
+    this.add.text(cx, cy - 60, `Team ${data.winnerTeam + 1} wins!`, {
+      fontSize: '28px',
+      color: TEAM_COLOR_STRINGS[data.winnerTeam] ?? '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 3,
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(depth);
+
+    // Damage scoreboard title
+    this.add.text(cx, cy - 15, 'Damage to Objective', {
+      fontSize: '18px',
+      color: '#aaaaaa',
+      stroke: '#000000',
+      strokeThickness: 2,
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(depth);
+
+    // Sort teams by damage (descending)
+    const teamDamages: { teamIndex: number; damage: number }[] = [];
+    for (let i = 0; i < NUM_TEAMS; i++) {
+      teamDamages.push({
+        teamIndex: i,
+        damage: data.damageByTeam[String(i)] ?? 0,
+      });
+    }
+    teamDamages.sort((a, b) => b.damage - a.damage);
+
+    for (let i = 0; i < teamDamages.length; i++) {
+      const { teamIndex, damage } = teamDamages[i];
+      const marker = teamIndex === this.myTeamIndex ? ' ◄' : '';
+      const crown = teamIndex === data.winnerTeam ? ' 👑' : '';
+      this.add.text(cx, cy + 15 + i * 28, `Team ${teamIndex + 1}: ${Math.round(damage)} dmg${crown}${marker}`, {
+        fontSize: '16px',
+        color: TEAM_COLOR_STRINGS[teamIndex] ?? '#ffffff',
+        stroke: '#000000',
+        strokeThickness: 2,
+      }).setOrigin(0.5).setScrollFactor(0).setDepth(depth);
+    }
+
+    // "Return to Lobby" button — placed directly on the scene (not in a container)
+    const btnY = cy + 15 + teamDamages.length * 28 + 30;
+    const btnBg = this.add.rectangle(cx, btnY, 240, 44, 0x333333, 0.9)
+      .setScrollFactor(0).setDepth(depth);
+    btnBg.setStrokeStyle(2, 0x44ff44, 1);
+    this.add.text(cx, btnY, '[ RETURN TO LOBBY ]', {
+      fontSize: '20px',
+      color: '#44ff44',
+      fontStyle: 'bold',
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(depth);
+
+    btnBg.setInteractive({ useHandCursor: true });
+    btnBg.on('pointerover', () => { btnBg.setFillStyle(0x444444, 1); });
+    btnBg.on('pointerout', () => { btnBg.setFillStyle(0x333333, 0.9); });
+    btnBg.on('pointerdown', () => { this.returnToLobby(); });
+  }
+
+  private returnToLobby() {
+    networkClient.leaveGame();
+    this.scene.stop('HUDScene');
+    this.scene.start('LobbyScene');
   }
 
   private showDisconnectOverlay() {

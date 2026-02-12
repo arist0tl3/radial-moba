@@ -30,6 +30,9 @@ export class LobbyScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // Room link container (DOM element so it's selectable/copyable)
+    // Clean up any existing container from a previous session (e.g. returning from game)
+    this.destroyRoomLink();
+
     this.roomLinkContainer = document.createElement('div');
     this.roomLinkContainer.style.cssText =
       'position:fixed; top:140px; left:50%; transform:translateX(-50%); ' +

@@ -8,7 +8,7 @@
 ## Phase 1 — Walking Around Together
 
 - [x] Fix lobby→game transition so all players join the same GameRoom
-- [ ] Verify click-to-move works with multiple players seeing each other
+- [x] Verify click-to-move works with multiple players seeing each other
 - [ ] Tune client-side interpolation (lerp factor, buffer server states)
 - [x] Add camera zoom controls (scroll wheel)
 - [x] Handle browser tab close / disconnect gracefully
@@ -16,8 +16,8 @@
 
 ## Phase 2 — Central Objective
 
-- [ ] Verify auto-attack triggers when player walks into range of objective
-- [ ] Test damage tracking per team shows correctly on HUD
+- [x] Verify auto-attack triggers when player walks into range of objective
+- [x] Test damage tracking per team shows correctly on HUD
 - [x] Implement segmented HP bar on objective
 - [ ] Add victory screen with "Play Again" / "Return to Lobby" options
 - [ ] Test win condition: objective destroyed → correct team wins
