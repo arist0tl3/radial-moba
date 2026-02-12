@@ -41,22 +41,24 @@ export class GameRoom extends Room<GameState> {
   private gameLoopInterval: ReturnType<typeof setInterval> | null = null;
   private minionSpawnTimer: number = 0;
   private inputQueue: Map<string, PlayerInput[]> = new Map();
+  private expectedPlayers: number = 0;
+  private teamAssignments: Record<string, number> = {};
 
   onCreate(options: { teamAssignments?: Record<string, number> }) {
     this.setState(new GameState());
     this.initializeMap();
+
+    // Store team assignments from the lobby so we know who to expect
+    if (options.teamAssignments) {
+      this.teamAssignments = options.teamAssignments;
+      this.expectedPlayers = Object.keys(options.teamAssignments).length;
+    }
 
     this.onMessage('input', (client, input: PlayerInput) => {
       if (this.state.phase !== 'playing') return;
       const queue = this.inputQueue.get(client.sessionId) ?? [];
       queue.push(input);
       this.inputQueue.set(client.sessionId, queue);
-    });
-
-    this.onMessage('startGame', () => {
-      if (this.state.phase === 'waiting') {
-        this.startGame();
-      }
     });
   }
 
@@ -86,6 +88,11 @@ export class GameRoom extends Room<GameState> {
     }
 
     this.inputQueue.set(client.sessionId, []);
+
+    // Auto-start when all expected players have joined
+    if (this.expectedPlayers > 0 && this.state.players.size >= this.expectedPlayers) {
+      this.startGame();
+    }
   }
 
   onLeave(client: Client) {

@@ -30,3 +30,4 @@ npm-debug.log*
 
 # Phaser cache
 .cache/
+client/.vite/

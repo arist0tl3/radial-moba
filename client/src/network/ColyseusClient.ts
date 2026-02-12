@@ -29,13 +29,8 @@ class NetworkClient {
     return this._lobbyRoom;
   }
 
-  async joinGame(options: { teamIndex: number }): Promise<Room> {
-    this._gameRoom = await this.client.create('game', options);
-    return this._gameRoom;
-  }
-
-  async joinGameById(roomId: string, options: { teamIndex: number }): Promise<Room> {
-    this._gameRoom = await this.client.joinById(roomId, options);
+  async joinGame(gameRoomId: string, options: { teamIndex: number }): Promise<Room> {
+    this._gameRoom = await this.client.joinById(gameRoomId, options);
     return this._gameRoom;
   }
 

@@ -17,14 +17,16 @@ export class GameScene extends Phaser.Scene {
   private objectiveSprite: ObjectiveSprite | null = null;
   private baseSprites: Map<string, Phaser.GameObjects.Arc> = new Map();
   private myTeamIndex: number = 0;
+  private gameRoomId: string = '';
   private mapBackground!: Phaser.GameObjects.Graphics;
 
   constructor() {
     super({ key: 'GameScene' });
   }
 
-  init(data: { teamIndex: number }) {
+  init(data: { teamIndex: number; gameRoomId: string }) {
     this.myTeamIndex = data.teamIndex ?? 0;
+    this.gameRoomId = data.gameRoomId;
   }
 
   create() {
@@ -76,7 +78,7 @@ export class GameScene extends Phaser.Scene {
 
   private async connectToGame() {
     try {
-      const room = await networkClient.joinGame({ teamIndex: this.myTeamIndex });
+      const room = await networkClient.joinGame(this.gameRoomId, { teamIndex: this.myTeamIndex });
 
       // Listen for state changes
       room.state.players.onAdd((player: any, key: string) => {
@@ -120,9 +122,6 @@ export class GameScene extends Phaser.Scene {
         circle.setStrokeStyle(2, color, 1);
         this.baseSprites.set(key, circle);
       });
-
-      // Start the game
-      room.send('startGame');
 
       // Launch HUD scene on top
       this.scene.launch('HUDScene', { teamIndex: this.myTeamIndex });
