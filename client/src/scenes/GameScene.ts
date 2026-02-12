@@ -46,6 +46,13 @@ export class GameScene extends Phaser.Scene {
         y: worldPoint.y,
       });
     });
+
+    // Scroll wheel to zoom camera
+    this.input.on('wheel', (_pointer: Phaser.Input.Pointer, _gos: any[], _dx: number, dy: number) => {
+      const cam = this.cameras.main;
+      const newZoom = Phaser.Math.Clamp(cam.zoom - dy * 0.001, 0.3, 2);
+      cam.setZoom(newZoom);
+    });
   }
 
   private drawMap() {
