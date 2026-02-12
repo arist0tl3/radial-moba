@@ -62,3 +62,8 @@ Early MVP. See [TODOS.md](./TODOS.md) for the full task list and [CHANGELOG.md](
 
 <img width="780" height="551" alt="image" src="https://github.com/user-attachments/assets/a3866fe0-a637-435d-ad4f-2340dace4e00" />
 
+### Feb 12, 2026
+
+<img width="1440" height="708" alt="image" src="https://github.com/user-attachments/assets/d9828803-2c1e-4eed-8ca1-308cf9d9207e" />
+
+
