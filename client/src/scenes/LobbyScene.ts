@@ -12,6 +12,9 @@ export class LobbyScene extends Phaser.Scene {
   }
 
   create() {
+    // Check for an existing game session to reconnect to (e.g. after browser refresh)
+    this.trySessionReconnect();
+
     const cx = this.cameras.main.centerX;
     const cy = this.cameras.main.centerY;
 
@@ -205,6 +208,28 @@ export class LobbyScene extends Phaser.Scene {
         );
         this.playerListTexts.push(text);
       });
+    }
+  }
+
+  /**
+   * Check sessionStorage for an active game session and attempt to reconnect.
+   * If successful, skip the lobby entirely and jump straight into GameScene.
+   */
+  private async trySessionReconnect() {
+    const session = networkClient.loadSession();
+    if (!session) return;
+
+    this.statusText?.setText('Reconnecting to game...');
+
+    const result = await networkClient.tryReconnectFromStorage();
+    if (result) {
+      this.destroyRoomLink();
+      this.scene.start('GameScene', {
+        teamIndex: result.teamIndex,
+        gameRoomId: result.gameRoomId,
+      });
+    } else {
+      this.statusText?.setText('Session expired. Create or join a room.');
     }
   }
 }

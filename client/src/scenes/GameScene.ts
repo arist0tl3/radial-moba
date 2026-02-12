@@ -142,6 +142,7 @@ export class GameScene extends Phaser.Scene {
 
       // Game over handler
       room.onMessage('gameOver', (data: { winnerTeam: number }) => {
+        networkClient.clearSession(); // Game is over, no need to reconnect
         const winText = data.winnerTeam === this.myTeamIndex ? 'VICTORY!' : `Team ${data.winnerTeam + 1} Wins`;
         const color = data.winnerTeam === this.myTeamIndex ? '#44ff44' : '#ff4444';
         const text = this.add.text(MAP_RADIUS, MAP_RADIUS, winText, {
