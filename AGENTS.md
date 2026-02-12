@@ -30,7 +30,18 @@ This file describes the AI agents that have contributed to this project and thei
 - **Disconnect handling**: Server allows 30s reconnection window via `allowReconnection()`; client detects abnormal disconnects, shows overlay, and retries 5 times
 - **SessionStorage reconnection**: Stores reconnection token, game room ID, and team index in `sessionStorage` so browser refreshes can rejoin the game automatically
 
-### What was NOT done (as of Session 2)
+### Session 3 — Victory Screen & Win Condition (2026-02-12)
+
+- **Victory screen overlay**: Replaced bare text with a full-screen overlay — dark backdrop, large VICTORY/DEFEAT heading, "Team X wins!" label in team color, per-team damage scoreboard sorted by damage (descending), 👑 for winner, ◄ for your team
+- **Return to Lobby button**: Interactive button with hover effect that cleanly transitions back to LobbyScene (stops HUD, leaves game room, clears session)
+- **Richer gameOver broadcast**: Server collects `damageByTeam` from the objective and includes it in the `gameOver` message
+- **Game over input blocking**: Added `gameOver` flag to prevent click-to-move after the game ends
+- **HUD freeze on finish**: HUDScene skips `update()` when `room.state.phase === 'finished'`
+- **LobbyScene DOM fix**: Calls `destroyRoomLink()` before creating a new DOM container to prevent element stacking on re-entry
+- **Objective HP reduced to 500** for faster testing (was 10,000)
+- **Learned Phaser lesson**: Interactive objects inside Containers with `setScrollFactor(0)` have broken hit areas — placed victory UI elements directly on the scene instead
+
+### What was NOT done (as of Session 3)
 
 - No Colyseus schema codegen — client state listeners still use `any` types
 - No real art, tilemaps, or Tiled integration

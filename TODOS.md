@@ -19,8 +19,8 @@
 - [x] Verify auto-attack triggers when player walks into range of objective
 - [x] Test damage tracking per team shows correctly on HUD
 - [x] Implement segmented HP bar on objective
-- [ ] Add victory screen with "Play Again" / "Return to Lobby" options
-- [ ] Test win condition: objective destroyed → correct team wins
+- [x] Add victory screen with "Return to Lobby" option
+- [x] Test win condition: objective destroyed → correct team wins
 
 ## Phase 3 — Bases & Elimination
 
