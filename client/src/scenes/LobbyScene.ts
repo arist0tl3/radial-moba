@@ -5,13 +5,16 @@ import { TEAM_COLOR_STRINGS, NUM_TEAMS } from '../shared/constants';
 export class LobbyScene extends Phaser.Scene {
   private playerListTexts: Phaser.GameObjects.Text[] = [];
   private statusText!: Phaser.GameObjects.Text;
-  private roomIdText!: Phaser.GameObjects.Text;
+  private roomLinkContainer: HTMLDivElement | null = null;
 
   constructor() {
     super({ key: 'LobbyScene' });
   }
 
   create() {
+    // Check for an existing game session to reconnect to (e.g. after browser refresh)
+    this.trySessionReconnect();
+
     const cx = this.cameras.main.centerX;
     const cy = this.cameras.main.centerY;
 
@@ -26,10 +29,31 @@ export class LobbyScene extends Phaser.Scene {
       color: '#aaaaaa',
     }).setOrigin(0.5);
 
-    this.roomIdText = this.add.text(cx, 160, '', {
-      fontSize: '16px',
-      color: '#66aaff',
-    }).setOrigin(0.5);
+    // Room link container (DOM element so it's selectable/copyable)
+    this.roomLinkContainer = document.createElement('div');
+    this.roomLinkContainer.style.cssText =
+      'position:fixed; top:140px; left:50%; transform:translateX(-50%); ' +
+      'display:none; text-align:center; z-index:10;';
+    this.roomLinkContainer.innerHTML =
+      '<input id="room-link" readonly style="' +
+      'background:#222; color:#66aaff; border:1px solid #444; padding:6px 12px; ' +
+      'font-size:14px; font-family:monospace; width:350px; text-align:center; ' +
+      'border-radius:4px; cursor:text;" />' +
+      '<button id="copy-link" style="' +
+      'background:#333; color:#44ff44; border:1px solid #444; padding:6px 12px; ' +
+      'font-size:14px; margin-left:8px; cursor:pointer; border-radius:4px;">' +
+      'COPY</button>';
+    document.body.appendChild(this.roomLinkContainer);
+
+    document.getElementById('copy-link')?.addEventListener('click', () => {
+      const input = document.getElementById('room-link') as HTMLInputElement;
+      if (input) {
+        navigator.clipboard.writeText(input.value);
+        const btn = document.getElementById('copy-link')!;
+        btn.textContent = 'COPIED!';
+        setTimeout(() => { btn.textContent = 'COPY'; }, 1500);
+      }
+    });
 
     // Create button
     const createBtn = this.add.text(cx - 100, 220, '[ CREATE ROOM ]', {
@@ -89,7 +113,7 @@ export class LobbyScene extends Phaser.Scene {
       const room = await networkClient.createLobby();
       this.statusText.setText('Room created! Share this link:');
       const link = `${window.location.origin}?room=${room.id}`;
-      this.roomIdText.setText(link);
+      this.showRoomLink(link);
       this.setupLobbyListeners();
     } catch (err) {
       this.statusText.setText(`Error: ${err}`);
@@ -107,7 +131,7 @@ export class LobbyScene extends Phaser.Scene {
     try {
       await networkClient.joinLobby(roomId);
       this.statusText.setText('Joined room!');
-      this.roomIdText.setText(`Room: ${roomId}`);
+      this.showRoomLink(`Room: ${roomId}`);
       this.setupLobbyListeners();
     } catch (err) {
       this.statusText.setText(`Error joining: ${err}`);
@@ -130,10 +154,27 @@ export class LobbyScene extends Phaser.Scene {
       this.updatePlayerList();
     });
 
-    room.onMessage('gameStart', (data: { teamAssignments: Record<string, number> }) => {
+    room.onMessage('gameStart', (data: { teamAssignments: Record<string, number>; gameRoomId: string }) => {
       const myTeam = data.teamAssignments[room.sessionId];
-      this.scene.start('GameScene', { teamIndex: myTeam });
+      networkClient.leaveLobby();
+      this.destroyRoomLink();
+      this.scene.start('GameScene', { teamIndex: myTeam, gameRoomId: data.gameRoomId });
     });
+  }
+
+  private showRoomLink(link: string) {
+    if (this.roomLinkContainer) {
+      this.roomLinkContainer.style.display = 'block';
+      const input = document.getElementById('room-link') as HTMLInputElement;
+      if (input) input.value = link;
+    }
+  }
+
+  private destroyRoomLink() {
+    if (this.roomLinkContainer) {
+      this.roomLinkContainer.remove();
+      this.roomLinkContainer = null;
+    }
   }
 
   private updatePlayerList() {
@@ -167,6 +208,28 @@ export class LobbyScene extends Phaser.Scene {
         );
         this.playerListTexts.push(text);
       });
+    }
+  }
+
+  /**
+   * Check sessionStorage for an active game session and attempt to reconnect.
+   * If successful, skip the lobby entirely and jump straight into GameScene.
+   */
+  private async trySessionReconnect() {
+    const session = networkClient.loadSession();
+    if (!session) return;
+
+    this.statusText?.setText('Reconnecting to game...');
+
+    const result = await networkClient.tryReconnectFromStorage();
+    if (result) {
+      this.destroyRoomLink();
+      this.scene.start('GameScene', {
+        teamIndex: result.teamIndex,
+        gameRoomId: result.gameRoomId,
+      });
+    } else {
+      this.statusText?.setText('Session expired. Create or join a room.');
     }
   }
 }

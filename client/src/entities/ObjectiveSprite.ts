@@ -26,33 +26,40 @@ export class ObjectiveSprite {
   updateFromState(state: any) {
     this.hpBar.clear();
 
-    const barWidth = OBJECTIVE_RADIUS * 2;
-    const barHeight = 8;
+    const barWidth = 200;
+    const barHeight = 12;
     const x = state.x - barWidth / 2;
-    const y = state.y - OBJECTIVE_RADIUS - 16;
+    const y = state.y - OBJECTIVE_RADIUS - 24;
     const hpPct = Math.max(0, state.hp / state.maxHp);
 
-    // Background
-    this.hpBar.fillStyle(0x333333, 0.8);
-    this.hpBar.fillRect(x, y, barWidth, barHeight);
+    // Background (full bar, dark)
+    this.hpBar.fillStyle(0x111111, 0.9);
+    this.hpBar.fillRect(x - 1, y - 1, barWidth + 2, barHeight + 2);
 
-    // Segmented HP bar showing damage by team
+    // Remaining HP (white portion on the right)
+    const hpWidth = barWidth * hpPct;
+    this.hpBar.fillStyle(0x888888, 0.6);
+    this.hpBar.fillRect(x, y, hpWidth, barHeight);
+
+    // Damage segments (fill from the left, showing who dealt what)
     let offsetX = 0;
     for (let i = 0; i < NUM_TEAMS; i++) {
       const dmg = state.damageByTeam?.get(String(i)) ?? 0;
       const dmgPct = dmg / state.maxHp;
       const segWidth = barWidth * dmgPct;
-      if (segWidth > 0) {
-        this.hpBar.fillStyle(TEAM_COLORS[i], 0.8);
+      if (segWidth > 0.5) {
+        this.hpBar.fillStyle(TEAM_COLORS[i], 1);
         this.hpBar.fillRect(x + offsetX, y, segWidth, barHeight);
         offsetX += segWidth;
       }
     }
 
-    // Remaining HP overlay (white, on the right side)
-    const remainingWidth = barWidth * hpPct;
-    this.hpBar.fillStyle(0xffffff, 0.3);
-    this.hpBar.fillRect(x + barWidth - remainingWidth, y, remainingWidth, barHeight);
+    // Border
+    this.hpBar.lineStyle(1, 0xffffff, 0.5);
+    this.hpBar.strokeRect(x - 1, y - 1, barWidth + 2, barHeight + 2);
+
+    // HP text
+    this.hpBar.fillStyle(0xffffff, 1);
   }
 
   destroy() {

@@ -1,4 +1,4 @@
-import { Room, Client } from 'colyseus';
+import { Room, Client, matchMaker } from 'colyseus';
 import { Schema, type, MapSchema, ArraySchema } from '@colyseus/schema';
 import { NUM_TEAMS, PLAYERS_PER_TEAM, TEAM_COLORS } from '../shared/constants';
 
@@ -95,7 +95,7 @@ export class LobbyRoom extends Room<LobbyState> {
     }
   }
 
-  private startGame() {
+  private async startGame() {
     this.state.started = true;
 
     // Build team assignments to send to clients
@@ -104,9 +104,15 @@ export class LobbyRoom extends Room<LobbyState> {
       teamAssignments[p.sessionId] = p.teamIndex;
     });
 
-    this.broadcast('gameStart', { teamAssignments, roomId: this.roomId });
+    // Create the GameRoom server-side so all clients join the SAME room
+    const gameRoom = await matchMaker.createRoom('game', { teamAssignments });
 
-    // Lock the room
+    this.broadcast('gameStart', {
+      teamAssignments,
+      gameRoomId: gameRoom.roomId,
+    });
+
+    // Lock the lobby
     this.lock();
   }
 }

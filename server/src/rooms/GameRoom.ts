@@ -41,22 +41,24 @@ export class GameRoom extends Room<GameState> {
   private gameLoopInterval: ReturnType<typeof setInterval> | null = null;
   private minionSpawnTimer: number = 0;
   private inputQueue: Map<string, PlayerInput[]> = new Map();
+  private expectedPlayers: number = 0;
+  private teamAssignments: Record<string, number> = {};
 
   onCreate(options: { teamAssignments?: Record<string, number> }) {
     this.setState(new GameState());
     this.initializeMap();
+
+    // Store team assignments from the lobby so we know who to expect
+    if (options.teamAssignments) {
+      this.teamAssignments = options.teamAssignments;
+      this.expectedPlayers = Object.keys(options.teamAssignments).length;
+    }
 
     this.onMessage('input', (client, input: PlayerInput) => {
       if (this.state.phase !== 'playing') return;
       const queue = this.inputQueue.get(client.sessionId) ?? [];
       queue.push(input);
       this.inputQueue.set(client.sessionId, queue);
-    });
-
-    this.onMessage('startGame', () => {
-      if (this.state.phase === 'waiting') {
-        this.startGame();
-      }
     });
   }
 
@@ -86,15 +88,41 @@ export class GameRoom extends Room<GameState> {
     }
 
     this.inputQueue.set(client.sessionId, []);
+
+    // Auto-start when all expected players have joined
+    if (this.expectedPlayers > 0 && this.state.players.size >= this.expectedPlayers) {
+      this.startGame();
+    }
   }
 
-  onLeave(client: Client) {
+  async onLeave(client: Client, consented: boolean) {
     const player = this.state.players.get(client.sessionId);
-    if (player) {
-      player.alive = false;
+
+    // If the player intentionally left, don't wait for reconnection
+    if (consented || this.state.phase === 'finished') {
+      if (player) player.alive = false;
+      this.inputQueue.delete(client.sessionId);
+      return;
     }
-    this.inputQueue.delete(client.sessionId);
-    // Don't remove from state — allows reconnection later
+
+    // Allow 30 seconds for reconnection (tab refresh, brief network drop)
+    try {
+      if (player) player.alive = false;
+
+      const reconnection = this.allowReconnection(client, 30);
+      const reconnectedClient = await reconnection;
+
+      // Player reconnected — restore them
+      if (player) {
+        player.alive = true;
+        // If they died while disconnected and respawned, they'll be at base
+        // If not, they resume where they were
+        this.inputQueue.set(reconnectedClient.sessionId, []);
+      }
+    } catch {
+      // Reconnection timed out — player is gone for good
+      this.inputQueue.delete(client.sessionId);
+    }
   }
 
   private initializeMap() {

@@ -17,14 +17,17 @@ export class GameScene extends Phaser.Scene {
   private objectiveSprite: ObjectiveSprite | null = null;
   private baseSprites: Map<string, Phaser.GameObjects.Arc> = new Map();
   private myTeamIndex: number = 0;
+  private gameRoomId: string = '';
   private mapBackground!: Phaser.GameObjects.Graphics;
+  private disconnectOverlay: Phaser.GameObjects.Container | null = null;
 
   constructor() {
     super({ key: 'GameScene' });
   }
 
-  init(data: { teamIndex: number }) {
+  init(data: { teamIndex: number; gameRoomId: string }) {
     this.myTeamIndex = data.teamIndex ?? 0;
+    this.gameRoomId = data.gameRoomId;
   }
 
   create() {
@@ -43,6 +46,13 @@ export class GameScene extends Phaser.Scene {
         x: worldPoint.x,
         y: worldPoint.y,
       });
+    });
+
+    // Scroll wheel to zoom camera
+    this.input.on('wheel', (_pointer: Phaser.Input.Pointer, _gos: any[], _dx: number, dy: number) => {
+      const cam = this.cameras.main;
+      const newZoom = Phaser.Math.Clamp(cam.zoom - dy * 0.001, 0.3, 2);
+      cam.setZoom(newZoom);
     });
   }
 
@@ -76,7 +86,7 @@ export class GameScene extends Phaser.Scene {
 
   private async connectToGame() {
     try {
-      const room = await networkClient.joinGame({ teamIndex: this.myTeamIndex });
+      const room = await networkClient.joinGame(this.gameRoomId, { teamIndex: this.myTeamIndex });
 
       // Listen for state changes
       room.state.players.onAdd((player: any, key: string) => {
@@ -106,12 +116,10 @@ export class GameScene extends Phaser.Scene {
         this.minionSprites.delete(key);
       });
 
-      // Central objective
-      room.state.listen('objective', (objective: any) => {
-        if (!this.objectiveSprite) {
-          this.objectiveSprite = new ObjectiveSprite(this, objective);
-        }
-      });
+      // Central objective — create sprite immediately from initial state
+      if (room.state.objective) {
+        this.objectiveSprite = new ObjectiveSprite(this, room.state.objective);
+      }
 
       // Bases
       room.state.bases.onAdd((base: any, key: string) => {
@@ -121,14 +129,20 @@ export class GameScene extends Phaser.Scene {
         this.baseSprites.set(key, circle);
       });
 
-      // Start the game
-      room.send('startGame');
-
       // Launch HUD scene on top
       this.scene.launch('HUDScene', { teamIndex: this.myTeamIndex });
 
+      // Disconnect / reconnect handling
+      networkClient.onDisconnect = () => {
+        this.showDisconnectOverlay();
+      };
+      networkClient.onReconnect = () => {
+        this.hideDisconnectOverlay();
+      };
+
       // Game over handler
       room.onMessage('gameOver', (data: { winnerTeam: number }) => {
+        networkClient.clearSession(); // Game is over, no need to reconnect
         const winText = data.winnerTeam === this.myTeamIndex ? 'VICTORY!' : `Team ${data.winnerTeam + 1} Wins`;
         const color = data.winnerTeam === this.myTeamIndex ? '#44ff44' : '#ff4444';
         const text = this.add.text(MAP_RADIUS, MAP_RADIUS, winText, {
@@ -170,5 +184,34 @@ export class GameScene extends Phaser.Scene {
         circle.setAlpha(0.2);
       }
     });
+  }
+
+  private showDisconnectOverlay() {
+    if (this.disconnectOverlay) return;
+
+    const cx = this.cameras.main.width / 2;
+    const cy = this.cameras.main.height / 2;
+
+    const bg = this.add.rectangle(0, 0, this.cameras.main.width, this.cameras.main.height, 0x000000, 0.6);
+    const text = this.add.text(0, -20, 'Connection lost', {
+      fontSize: '28px',
+      color: '#ff4444',
+      fontStyle: 'bold',
+    }).setOrigin(0.5);
+    const subText = this.add.text(0, 20, 'Reconnecting...', {
+      fontSize: '18px',
+      color: '#aaaaaa',
+    }).setOrigin(0.5);
+
+    this.disconnectOverlay = this.add.container(cx, cy, [bg, text, subText]);
+    this.disconnectOverlay.setScrollFactor(0);
+    this.disconnectOverlay.setDepth(200);
+  }
+
+  private hideDisconnectOverlay() {
+    if (this.disconnectOverlay) {
+      this.disconnectOverlay.destroy();
+      this.disconnectOverlay = null;
+    }
   }
 }

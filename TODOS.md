@@ -2,22 +2,23 @@
 
 ## Critical — Must fix before playable
 
-- [ ] **Lobby→Game handoff bug**: `GameScene.connectToGame()` calls `client.create('game')` which creates a new room per client. Need to either create the GameRoom server-side and pass the room ID to clients, or have one client create and others join by ID.
+- [x] **Lobby→Game handoff bug**: Fixed — LobbyRoom creates GameRoom server-side via `matchMaker.createRoom()`, clients join by ID
 - [ ] **Colyseus schema registration**: Client-side state listeners use `any` types. Need to verify schema classes are properly registered on the client or use Colyseus schema codegen.
 
 ## Phase 1 — Walking Around Together
 
-- [ ] Fix lobby→game transition so all players join the same GameRoom
+- [x] Fix lobby→game transition so all players join the same GameRoom
 - [ ] Verify click-to-move works with multiple players seeing each other
 - [ ] Tune client-side interpolation (lerp factor, buffer server states)
-- [ ] Add camera zoom controls (scroll wheel)
-- [ ] Handle browser tab close / disconnect gracefully
+- [x] Add camera zoom controls (scroll wheel)
+- [x] Handle browser tab close / disconnect gracefully
+- [x] Handle browser refresh reconnection (sessionStorage)
 
 ## Phase 2 — Central Objective
 
 - [ ] Verify auto-attack triggers when player walks into range of objective
 - [ ] Test damage tracking per team shows correctly on HUD
-- [ ] Implement segmented HP bar on objective (currently renders but untested)
+- [x] Implement segmented HP bar on objective
 - [ ] Add victory screen with "Play Again" / "Return to Lobby" options
 - [ ] Test win condition: objective destroyed → correct team wins
 
@@ -57,8 +58,8 @@
 ## Tech Debt / Improvements
 
 - [ ] Replace `any` types in client state listeners with proper Colyseus schema types
-- [ ] Add error handling for WebSocket disconnects
-- [ ] Add reconnection support
+- [x] Add error handling for WebSocket disconnects
+- [x] Add reconnection support (network drops + browser refresh)
 - [ ] Client-side prediction for local player movement
 - [ ] Server-side validation of move targets (bounds checking, speed hacking prevention)
 - [ ] Consider code-splitting Phaser to reduce bundle size (1.5MB)
