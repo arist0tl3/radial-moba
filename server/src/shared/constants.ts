@@ -27,16 +27,18 @@ export const PLAYER_ABILITY_DAMAGE = 120;
 export const PLAYER_ABILITY_RANGE = 200;
 export const PLAYER_ABILITY_COOLDOWN = 5000; // ms
 export const PLAYER_RESPAWN_BASE = 5000; // ms, increases with deaths
+export const PLAYER_COLLISION_RADIUS = 14;
 
 // Minions
 export const MINION_HP = 200;
 export const MINION_SPEED = 80;
 export const MINION_ATTACK_DAMAGE = 20;
-export const MINION_ATTACK_RANGE = 40;
+export const MINION_ATTACK_RANGE = 20;
 export const MINION_ATTACK_COOLDOWN = 1500; // ms
 export const MINION_AGGRO_RANGE = 150;
 export const MINION_SPAWN_INTERVAL = 30000; // ms
 export const MINIONS_PER_WAVE = 3;
+export const MINION_COLLISION_RADIUS = 8;
 
 // Teams
 export const PLAYERS_PER_TEAM = 3;

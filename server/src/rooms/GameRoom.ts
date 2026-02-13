@@ -5,8 +5,9 @@ import { Team } from '../state/Team';
 import { Base } from '../state/Base';
 import { CentralObjective } from '../state/CentralObjective';
 import { updateMovement } from '../systems/MovementSystem';
-import { updateCombat } from '../systems/CombatSystem';
+import { updateCombat, checkTeamElimination } from '../systems/CombatSystem';
 import { updateMinionAI, spawnMinionWave } from '../systems/MinionAI';
+import { updateCollisions } from '../systems/CollisionSystem';
 import { checkWinConditions } from '../systems/WinCondition';
 import {
   TICK_INTERVAL,
@@ -35,7 +36,11 @@ interface AttackInput {
   targetId: string;
 }
 
-type PlayerInput = MoveInput | AbilityInput | AttackInput;
+interface StopInput {
+  type: 'stop';
+}
+
+type PlayerInput = MoveInput | AbilityInput | AttackInput | StopInput;
 
 export class GameRoom extends Room<GameState> {
   private gameLoopInterval: ReturnType<typeof setInterval> | null = null;
@@ -202,22 +207,35 @@ export class GameRoom extends Room<GameState> {
     // 3. Update minion AI
     updateMinionAI(this.state, dt);
 
-    // 4. Resolve combat
+    // 4. Resolve collisions
+    updateCollisions(this.state);
+
+    // 5. Resolve combat
     updateCombat(this.state, dt);
 
-    // 5. Spawn minions on timer
+    // 6. Check team elimination (base destroyed + all players dead)
+    checkTeamElimination(this.state);
+
+    // 7. Spawn minions on timer
     this.minionSpawnTimer += TICK_INTERVAL;
     if (this.minionSpawnTimer >= 30000) { // every 30 seconds
       spawnMinionWave(this.state);
       this.minionSpawnTimer = 0;
     }
 
-    // 6. Check win conditions
+    // 8. Check win conditions
     const winner = checkWinConditions(this.state);
     if (winner !== null) {
       this.state.phase = 'finished';
       this.state.winnerTeam = String(winner);
-      this.broadcast('gameOver', { winnerTeam: winner });
+
+      // Collect per-team damage stats for the victory screen
+      const damageByTeam: Record<string, number> = {};
+      this.state.objective.damageByTeam.forEach((dmg, teamIdx) => {
+        damageByTeam[teamIdx] = dmg;
+      });
+
+      this.broadcast('gameOver', { winnerTeam: winner, damageByTeam });
       if (this.gameLoopInterval) {
         clearInterval(this.gameLoopInterval);
         this.gameLoopInterval = null;
@@ -237,12 +255,21 @@ export class GameRoom extends Room<GameState> {
           case 'move':
             player.targetX = input.x;
             player.targetY = input.y;
+            player.attackTargetId = ''; // Cancel attack target on ground click
             break;
           case 'attack':
-            // Handled by combat system based on range
+            player.attackTargetId = input.targetId;
+            // Stop current move — movement will be driven by following the target
+            player.targetX = player.x;
+            player.targetY = player.y;
             break;
           case 'ability':
             // TODO: Phase 5 — ability system
+            break;
+          case 'stop':
+            player.targetX = player.x;
+            player.targetY = player.y;
+            player.attackTargetId = '';
             break;
         }
       }

@@ -49,6 +49,9 @@ export class HUDScene extends Phaser.Scene {
     const room = networkClient.gameRoom;
     if (!room) return;
 
+    // Stop updating HUD once the game is over
+    if (room.state.phase === 'finished') return;
+
     // Update player HP
     const me = room.state.players.get(room.sessionId);
     if (me) {

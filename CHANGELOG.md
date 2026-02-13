@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.3.0] - 2026-02-12
+
+### Added
+
+- **Victory screen**: Full overlay on game over with VICTORY/DEFEAT heading, winning team label, per-team damage scoreboard sorted by contribution (with 👑 for winner), and a "Return to Lobby" button.
+- **Return to lobby flow**: After game over, players can click "Return to Lobby" to cleanly transition back to the lobby and start a new game.
+- **Richer gameOver broadcast**: Server now sends per-team damage stats alongside the winning team index.
+
+### Changed
+
+- **Objective HP reduced to 500** (from 10,000) for faster testing.
+- **HUD freezes on game over**: HUDScene stops updating once the game phase is `'finished'`.
+- **Click-to-move disabled after game over**: Prevents movement inputs while the victory screen is showing.
+
+### Fixed
+
+- **LobbyScene DOM stacking**: Room link container is cleaned up before re-creation when returning from a game, preventing duplicate DOM elements.
+
 ## [0.2.0] - 2026-02-11
 
 ### Fixed
