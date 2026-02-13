@@ -20,6 +20,7 @@ export class GameScene extends Phaser.Scene {
   private minionSprites: Map<string, MinionSprite> = new Map();
   private objectiveSprite: ObjectiveSprite | null = null;
   private baseSprites: Map<string, Phaser.GameObjects.Sprite> = new Map();
+  private baseHpBars: Map<string, Phaser.GameObjects.Graphics> = new Map();
   private myTeamIndex: number = 0;
   private gameRoomId: string = '';
   private mapBackground!: Phaser.GameObjects.Graphics;
@@ -135,6 +136,10 @@ export class GameScene extends Phaser.Scene {
         baseSprite.setScale(2.5);
         baseSprite.setDepth(3);
         this.baseSprites.set(key, baseSprite);
+
+        const hpBar = this.add.graphics();
+        hpBar.setDepth(4);
+        this.baseHpBars.set(key, hpBar);
       });
 
       // Launch HUD scene on top
@@ -177,12 +182,46 @@ export class GameScene extends Phaser.Scene {
       this.objectiveSprite.updateFromState(room.state.objective);
     }
 
-    // Update base visuals (destroyed state)
+    // Update base visuals (HP bars + destroyed/captured state)
     room.state.bases.forEach((base: any, key: string) => {
       const baseSprite = this.baseSprites.get(key);
-      if (baseSprite && base.destroyed) {
-        baseSprite.setAlpha(0.2);
+      const hpBar = this.baseHpBars.get(key);
+
+      // HP bar
+      if (hpBar) {
+        hpBar.clear();
+        if (!base.destroyed) {
+          const barWidth = 50;
+          const barHeight = 5;
+          const bx = base.x - barWidth / 2;
+          const by = base.y - 40;
+          const hpPct = Math.max(0, base.hp / base.maxHp);
+
+          // Background
+          hpBar.fillStyle(0x333333, 0.8);
+          hpBar.fillRect(bx, by, barWidth, barHeight);
+
+          // HP fill — team colored
+          const color = TEAM_COLORS[base.teamIndex] ?? 0xffffff;
+          hpBar.fillStyle(color, 1);
+          hpBar.fillRect(bx, by, barWidth * hpPct, barHeight);
+
+          // Border
+          hpBar.lineStyle(1, 0xffffff, 0.5);
+          hpBar.strokeRect(bx - 1, by - 1, barWidth + 2, barHeight + 2);
+        }
+      }
+
+      // Tint changes on capture
+      if (!baseSprite || !base.destroyed) return;
+
+      if (base.capturedByTeam >= 0) {
+        const captorColor = TEAM_COLORS[base.capturedByTeam] ?? 0x888888;
+        baseSprite.setTint(captorColor);
+        baseSprite.setAlpha(0.7);
+      } else {
         baseSprite.setTint(0x444444);
+        baseSprite.setAlpha(0.2);
       }
     });
   }

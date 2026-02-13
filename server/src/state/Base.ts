@@ -7,4 +7,5 @@ export class Base extends Schema {
   @type('number') hp: number = 0;
   @type('number') maxHp: number = 0;
   @type('boolean') destroyed: boolean = false;
+  @type('number') capturedByTeam: number = -1;
 }

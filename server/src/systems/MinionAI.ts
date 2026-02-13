@@ -16,27 +16,39 @@ function distance(ax: number, ay: number, bx: number, by: number): number {
   return Math.sqrt((ax - bx) ** 2 + (ay - by) ** 2);
 }
 
-export function spawnMinionWave(state: GameState) {
-  for (let teamIdx = 0; teamIdx < NUM_TEAMS; teamIdx++) {
-    const team = state.teams[teamIdx];
-    if (!team || team.eliminated) continue;
+function spawnMinionsAtBase(
+  state: GameState,
+  teamIndex: number,
+  baseX: number,
+  baseY: number
+) {
+  const team = state.teams[teamIndex];
+  if (!team || team.eliminated) return;
 
-    const base = state.bases.get(String(teamIdx));
-    if (!base || base.destroyed) continue;
-
-    for (let i = 0; i < MINIONS_PER_WAVE; i++) {
-      const minion = new Minion();
-      minion.id = `minion_${minionIdCounter++}`;
-      minion.teamIndex = teamIdx;
-      // Spawn near the base with slight offset so they don't stack
-      minion.x = base.x + (i - 1) * 20;
-      minion.y = base.y + (i - 1) * 20;
-      minion.hp = MINION_HP;
-      minion.maxHp = MINION_HP;
-      minion.state = 'walking';
-      state.minions.set(minion.id, minion);
-    }
+  for (let i = 0; i < MINIONS_PER_WAVE; i++) {
+    const minion = new Minion();
+    minion.id = `minion_${minionIdCounter++}`;
+    minion.teamIndex = teamIndex;
+    // Spawn near the base with slight offset so they don't stack
+    minion.x = baseX + (i - 1) * 20;
+    minion.y = baseY + (i - 1) * 20;
+    minion.hp = MINION_HP;
+    minion.maxHp = MINION_HP;
+    minion.state = 'walking';
+    state.minions.set(minion.id, minion);
   }
+}
+
+export function spawnMinionWave(state: GameState) {
+  state.bases.forEach((base) => {
+    if (!base.destroyed) {
+      // Active base — spawn minions for the owning team
+      spawnMinionsAtBase(state, base.teamIndex, base.x, base.y);
+    } else if (base.capturedByTeam >= 0) {
+      // Captured base — spawn minions for the capturing team
+      spawnMinionsAtBase(state, base.capturedByTeam, base.x, base.y);
+    }
+  });
 }
 
 export function updateMinionAI(state: GameState, dt: number) {

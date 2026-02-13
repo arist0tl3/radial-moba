@@ -5,8 +5,8 @@ import { GameState } from '../state/GameState';
  *
  * Win conditions:
  * 1. Central objective destroyed → team with most damage wins
- * 2. Last team standing → that team wins
- * 3. Tiebreaker: if simultaneous base destruction, highest objective damage wins
+ * 2. Last team standing → that team wins (eliminated = base destroyed + all players dead)
+ * 3. Tiebreaker: if all teams eliminated simultaneously, highest objective damage wins
  */
 export function checkWinConditions(state: GameState): number | null {
   // Win condition 1: central objective destroyed

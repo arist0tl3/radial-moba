@@ -10,7 +10,7 @@ export const TILE_SIZE = 32;
 export const NUM_TEAMS = 4; // Hardcoded for MVP
 
 // Central objective
-export const OBJECTIVE_HP = 500; // Reduced for testing (was 10000)
+export const OBJECTIVE_HP = 10000;
 export const OBJECTIVE_RADIUS = 64;
 
 // Team bases

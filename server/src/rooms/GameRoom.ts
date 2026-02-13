@@ -5,7 +5,7 @@ import { Team } from '../state/Team';
 import { Base } from '../state/Base';
 import { CentralObjective } from '../state/CentralObjective';
 import { updateMovement } from '../systems/MovementSystem';
-import { updateCombat } from '../systems/CombatSystem';
+import { updateCombat, checkTeamElimination } from '../systems/CombatSystem';
 import { updateMinionAI, spawnMinionWave } from '../systems/MinionAI';
 import { updateCollisions } from '../systems/CollisionSystem';
 import { checkWinConditions } from '../systems/WinCondition';
@@ -209,14 +209,17 @@ export class GameRoom extends Room<GameState> {
     // 5. Resolve combat
     updateCombat(this.state, dt);
 
-    // 6. Spawn minions on timer
+    // 6. Check team elimination (base destroyed + all players dead)
+    checkTeamElimination(this.state);
+
+    // 7. Spawn minions on timer
     this.minionSpawnTimer += TICK_INTERVAL;
     if (this.minionSpawnTimer >= 30000) { // every 30 seconds
       spawnMinionWave(this.state);
       this.minionSpawnTimer = 0;
     }
 
-    // 7. Check win conditions
+    // 8. Check win conditions
     const winner = checkWinConditions(this.state);
     if (winner !== null) {
       this.state.phase = 'finished';

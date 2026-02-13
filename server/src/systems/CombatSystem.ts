@@ -181,7 +181,7 @@ function applyDamage(
         base.hp -= damage;
         if (base.hp <= 0) {
           base.destroyed = true;
-          eliminateTeam(state, target.teamIndex);
+          base.capturedByTeam = attacker.teamIndex;
         }
       }
       break;
@@ -216,7 +216,7 @@ function applyDamageFromMinion(
         base.hp -= damage;
         if (base.hp <= 0) {
           base.destroyed = true;
-          eliminateTeam(state, target.teamIndex);
+          base.capturedByTeam = minion.teamIndex;
         }
       }
       break;
@@ -249,43 +249,53 @@ function killPlayer(state: GameState, player: Player) {
 }
 
 function respawnPlayer(state: GameState, player: Player) {
-  // Check if team is eliminated
-  const team = state.teams[player.teamIndex];
-  if (team && team.eliminated) return;
+  // Can't respawn if your base is destroyed
+  const base = state.bases.get(String(player.teamIndex));
+  if (!base || base.destroyed) return;
 
   player.alive = true;
   player.hp = player.maxHp;
 
   // Respawn at base
-  const base = state.bases.get(String(player.teamIndex));
-  if (base && !base.destroyed) {
-    player.x = base.x;
-    player.y = base.y;
-    player.targetX = base.x;
-    player.targetY = base.y;
-  }
+  player.x = base.x;
+  player.y = base.y;
+  player.targetX = base.x;
+  player.targetY = base.y;
 }
 
-function eliminateTeam(state: GameState, teamIndex: number) {
-  const team = state.teams[teamIndex];
-  if (!team) return;
-  team.eliminated = true;
+/**
+ * Check if a team is fully eliminated (base destroyed + all players dead).
+ * If so, mark them eliminated and clean up their minions.
+ */
+export function checkTeamElimination(state: GameState) {
+  for (let i = 0; i < state.teams.length; i++) {
+    const team = state.teams[i];
+    if (!team || team.eliminated) continue;
 
-  // Kill all players on this team
-  state.players.forEach((player) => {
-    if (player.teamIndex === teamIndex) {
-      player.alive = false;
-    }
-  });
+    const base = state.bases.get(String(i));
+    if (!base || !base.destroyed) continue; // Base still standing — not eliminated
 
-  // Remove all minions belonging to this team
-  const toRemove: string[] = [];
-  state.minions.forEach((minion, key) => {
-    if (minion.teamIndex === teamIndex) {
-      toRemove.push(key);
+    // Base is destroyed — check if any players are still alive
+    let hasAlivePlayer = false;
+    state.players.forEach((player) => {
+      if (player.teamIndex === i && player.alive) {
+        hasAlivePlayer = true;
+      }
+    });
+
+    if (!hasAlivePlayer) {
+      team.eliminated = true;
+
+      // Remove all minions belonging to this team
+      const toRemove: string[] = [];
+      state.minions.forEach((minion, key) => {
+        if (minion.teamIndex === i) {
+          toRemove.push(key);
+        }
+      });
+      for (const key of toRemove) {
+        state.minions.delete(key);
+      }
     }
-  });
-  for (const key of toRemove) {
-    state.minions.delete(key);
   }
 }

@@ -94,20 +94,22 @@ export function updateCollisions(state: GameState) {
     }
   }
 
-  // Player ↔ Enemy Bases (static, skip own team's base)
+  // Player ↔ Bases (static, skip friendly bases — own team or captured by your team)
   state.bases.forEach((base) => {
-    if (base.destroyed) return;
     for (const player of players) {
       if (player.teamIndex === base.teamIndex) continue;
+      if (base.destroyed && base.capturedByTeam === player.teamIndex) continue;
+      if (base.destroyed && base.capturedByTeam < 0) continue; // destroyed, uncaptured — no collision
       separateFromStatic(player, base, PLAYER_COLLISION_RADIUS, BASE_RADIUS);
     }
   });
 
-  // Minion ↔ Enemy Bases (static, skip own team's base)
+  // Minion ↔ Bases (static, skip friendly bases — own team or captured by your team)
   state.bases.forEach((base) => {
-    if (base.destroyed) return;
     for (const minion of minions) {
       if (minion.teamIndex === base.teamIndex) continue;
+      if (base.destroyed && base.capturedByTeam === minion.teamIndex) continue;
+      if (base.destroyed && base.capturedByTeam < 0) continue; // destroyed, uncaptured — no collision
       separateFromStatic(minion, base, MINION_COLLISION_RADIUS, BASE_RADIUS);
     }
   });
