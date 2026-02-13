@@ -15,4 +15,5 @@ export class Player extends Schema {
   @type('boolean') alive: boolean = true;
   @type('number') respawnTimer: number = 0;
   @type('number') deaths: number = 0;
+  @type('boolean') isAttacking: boolean = false;
 }

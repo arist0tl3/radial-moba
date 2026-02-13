@@ -7,6 +7,7 @@ import { CentralObjective } from '../state/CentralObjective';
 import { updateMovement } from '../systems/MovementSystem';
 import { updateCombat } from '../systems/CombatSystem';
 import { updateMinionAI, spawnMinionWave } from '../systems/MinionAI';
+import { updateCollisions } from '../systems/CollisionSystem';
 import { checkWinConditions } from '../systems/WinCondition';
 import {
   TICK_INTERVAL,
@@ -202,17 +203,20 @@ export class GameRoom extends Room<GameState> {
     // 3. Update minion AI
     updateMinionAI(this.state, dt);
 
-    // 4. Resolve combat
+    // 4. Resolve collisions
+    updateCollisions(this.state);
+
+    // 5. Resolve combat
     updateCombat(this.state, dt);
 
-    // 5. Spawn minions on timer
+    // 6. Spawn minions on timer
     this.minionSpawnTimer += TICK_INTERVAL;
     if (this.minionSpawnTimer >= 30000) { // every 30 seconds
       spawnMinionWave(this.state);
       this.minionSpawnTimer = 0;
     }
 
-    // 6. Check win conditions
+    // 7. Check win conditions
     const winner = checkWinConditions(this.state);
     if (winner !== null) {
       this.state.phase = 'finished';

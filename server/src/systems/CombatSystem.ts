@@ -30,6 +30,11 @@ export function updateCombat(state: GameState, dt: number) {
     }
   });
 
+  // Clear attack flags from previous tick
+  state.players.forEach((player) => {
+    player.isAttacking = false;
+  });
+
   // Player auto-attacks: attack nearest enemy in range
   state.players.forEach((player) => {
     if (!player.alive || player.attackCooldown > 0) return;
@@ -39,6 +44,7 @@ export function updateCombat(state: GameState, dt: number) {
 
     applyDamage(state, player, target, PLAYER_ATTACK_DAMAGE);
     player.attackCooldown = PLAYER_ATTACK_COOLDOWN;
+    player.isAttacking = true;
   });
 
   // Handle player respawning

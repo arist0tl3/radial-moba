@@ -4,9 +4,11 @@ import { TEAM_COLORS } from '../shared/constants';
 export class MinionSprite {
   private sprite: Phaser.GameObjects.Sprite;
   private teamMarker: Phaser.GameObjects.Arc;
+  private hpBar: Phaser.GameObjects.Graphics;
   private scene: Phaser.Scene;
   private prevX: number = 0;
   private currentAnim: string = '';
+  private isPlayingAttack: boolean = false;
 
   constructor(scene: Phaser.Scene, minionState: any) {
     this.scene = scene;
@@ -23,6 +25,9 @@ export class MinionSprite {
     this.sprite.setScale(2.0);
     this.sprite.setDepth(5);
     this.sprite.play('orc-idle');
+
+    this.hpBar = scene.add.graphics();
+    this.hpBar.setDepth(6);
 
     this.prevX = minionState.x;
   }
@@ -47,12 +52,41 @@ export class MinionSprite {
     const alive = state.hp > 0;
     this.sprite.setVisible(alive);
     this.teamMarker.setVisible(alive);
+    this.hpBar.setVisible(alive);
+
+    // Draw HP bar
+    this.hpBar.clear();
+    if (alive) {
+      const barWidth = 30;
+      const barHeight = 3;
+      const bx = this.sprite.x - barWidth / 2;
+      const by = this.sprite.y - 30;
+      const hpPct = Math.max(0, state.hp / state.maxHp);
+
+      // Background
+      this.hpBar.fillStyle(0x333333, 0.8);
+      this.hpBar.fillRect(bx, by, barWidth, barHeight);
+
+      // HP fill
+      const hpColor = hpPct > 0.5 ? 0x44ff44 : hpPct > 0.25 ? 0xffaa44 : 0xff4444;
+      this.hpBar.fillStyle(hpColor, 1);
+      this.hpBar.fillRect(bx, by, barWidth * hpPct, barHeight);
+    }
 
     if (alive) {
-      if (isMoving) {
-        this.playAnim('orc-walk');
-      } else {
-        this.playAnim('orc-idle');
+      if (state.state === 'attacking' && !this.isPlayingAttack) {
+        this.isPlayingAttack = true;
+        this.currentAnim = 'orc-attack';
+        this.sprite.play('orc-attack', true);
+        this.sprite.once('animationcomplete', () => {
+          this.isPlayingAttack = false;
+        });
+      } else if (!this.isPlayingAttack) {
+        if (isMoving) {
+          this.playAnim('orc-walk');
+        } else {
+          this.playAnim('orc-idle');
+        }
       }
     }
 
@@ -69,5 +103,6 @@ export class MinionSprite {
   destroy() {
     this.sprite.destroy();
     this.teamMarker.destroy();
+    this.hpBar.destroy();
   }
 }

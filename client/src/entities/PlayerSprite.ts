@@ -11,6 +11,7 @@ export class PlayerSprite {
   private prevY: number = 0;
   private currentAnim: string = '';
   private isDead: boolean = false;
+  private isPlayingAttack: boolean = false;
   private isMe: boolean;
 
   constructor(scene: Phaser.Scene, playerState: any, isMe: boolean) {
@@ -93,10 +94,19 @@ export class PlayerSprite {
     }
 
     // Choose animation based on state
-    if (isMoving) {
-      this.playAnim('soldier-walk');
-    } else {
-      this.playAnim('soldier-idle');
+    if (state.isAttacking && !this.isPlayingAttack) {
+      this.isPlayingAttack = true;
+      this.currentAnim = 'soldier-attack';
+      this.sprite.play('soldier-attack', true);
+      this.sprite.once('animationcomplete', () => {
+        this.isPlayingAttack = false;
+      });
+    } else if (!this.isPlayingAttack) {
+      if (isMoving) {
+        this.playAnim('soldier-walk');
+      } else {
+        this.playAnim('soldier-idle');
+      }
     }
 
     // Update HP bar
