@@ -90,7 +90,7 @@ export class LobbyRoom extends Room<LobbyState> {
       if (!p.ready) allReady = false;
     });
 
-    if (allReady && playerCount >= 2) {
+    if (allReady && playerCount >= 1) {
       this.startGame();
     }
   }

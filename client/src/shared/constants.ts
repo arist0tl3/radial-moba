@@ -41,9 +41,12 @@ export const MINIONS_PER_WAVE = 3;
 export const MINION_COLLISION_RADIUS = 8;
 
 // Teams
-export const PLAYERS_PER_TEAM = 3;
+export const PLAYERS_PER_TEAM = 1;
 export const TEAM_COLORS = [0xff4444, 0x4444ff, 0x44ff44, 0xffff44] as const;
 export const TEAM_COLOR_STRINGS = ['#ff4444', '#4444ff', '#44ff44', '#ffff44'] as const;
+
+// Bots
+export const BOT_SCAN_RANGE = 500; // How far bots look for targets
 
 // Lobby
 export const MAX_TEAMS = 4;

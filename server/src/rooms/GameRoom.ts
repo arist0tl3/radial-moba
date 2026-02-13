@@ -9,6 +9,7 @@ import { updateCombat, checkTeamElimination } from '../systems/CombatSystem';
 import { updateMinionAI, spawnMinionWave } from '../systems/MinionAI';
 import { updateCollisions } from '../systems/CollisionSystem';
 import { checkWinConditions } from '../systems/WinCondition';
+import { updateBotAI } from '../systems/BotAI';
 import {
   TICK_INTERVAL,
   NUM_TEAMS,
@@ -186,11 +187,52 @@ export class GameRoom extends Room<GameState> {
   }
 
   private startGame() {
+    // Fill empty teams with AI bots
+    this.createBots();
+
     this.state.phase = 'playing';
 
     this.gameLoopInterval = setInterval(() => {
       this.gameTick();
     }, TICK_INTERVAL);
+  }
+
+  private createBots() {
+    // Find which teams already have human players
+    const teamsWithHumans = new Set<number>();
+    this.state.players.forEach((player) => {
+      if (!player.isBot) {
+        teamsWithHumans.add(player.teamIndex);
+      }
+    });
+
+    // Create a bot for each empty team
+    for (let i = 0; i < NUM_TEAMS; i++) {
+      if (teamsWithHumans.has(i)) continue;
+
+      const botId = `bot_${i}`;
+      const player = new Player();
+      player.id = botId;
+      player.sessionId = botId;
+      player.teamIndex = i;
+      player.hp = PLAYER_HP;
+      player.maxHp = PLAYER_HP;
+      player.isBot = true;
+
+      const spawn = this.getTeamSpawnPosition(i);
+      player.x = spawn.x;
+      player.y = spawn.y;
+      player.targetX = spawn.x;
+      player.targetY = spawn.y;
+      player.alive = true;
+
+      this.state.players.set(botId, player);
+
+      const team = this.state.teams[i];
+      if (team) {
+        team.playerIds.push(botId);
+      }
+    }
   }
 
   private gameTick() {
@@ -200,6 +242,9 @@ export class GameRoom extends Room<GameState> {
 
     // 1. Process inputs
     this.processInputs();
+
+    // 1.5. Update bot AI (sets attackTargetId for bots)
+    updateBotAI(this.state, dt);
 
     // 2. Update movement
     updateMovement(this.state, dt);

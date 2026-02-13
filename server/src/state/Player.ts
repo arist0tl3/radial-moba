@@ -17,4 +17,5 @@ export class Player extends Schema {
   @type('number') deaths: number = 0;
   @type('boolean') isAttacking: boolean = false;
   @type('string') attackTargetId: string = '';
+  @type('boolean') isBot: boolean = false;
 }
