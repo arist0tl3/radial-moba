@@ -48,7 +48,8 @@ export class GameScene extends Phaser.Scene {
     this.drawMap();
     this.connectToGame();
 
-    // Create target highlight graphic
+    // Set custom cursor and create target highlight graphic
+    this.input.setDefaultCursor("url('/cursors/pointer.svg') 5 5, default");
     this.targetHighlight = this.add.graphics();
     this.targetHighlight.setDepth(100);
 
@@ -71,6 +72,18 @@ export class GameScene extends Phaser.Scene {
           y: worldPoint.y,
         });
       }
+    });
+
+    // Change cursor when hovering over attackable entities
+    this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      if (this.gameOver) return;
+      const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+      const hoverId = this.hitTestEntities(worldPoint.x, worldPoint.y);
+      this.input.setDefaultCursor(
+        hoverId
+          ? "url('/cursors/sword.svg') 4 4, crosshair"
+          : "url('/cursors/pointer.svg') 5 5, default"
+      );
     });
 
     // Scroll wheel to zoom camera
