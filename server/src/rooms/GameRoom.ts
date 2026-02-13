@@ -36,7 +36,11 @@ interface AttackInput {
   targetId: string;
 }
 
-type PlayerInput = MoveInput | AbilityInput | AttackInput;
+interface StopInput {
+  type: 'stop';
+}
+
+type PlayerInput = MoveInput | AbilityInput | AttackInput | StopInput;
 
 export class GameRoom extends Room<GameState> {
   private gameLoopInterval: ReturnType<typeof setInterval> | null = null;
@@ -251,12 +255,21 @@ export class GameRoom extends Room<GameState> {
           case 'move':
             player.targetX = input.x;
             player.targetY = input.y;
+            player.attackTargetId = ''; // Cancel attack target on ground click
             break;
           case 'attack':
-            // Handled by combat system based on range
+            player.attackTargetId = input.targetId;
+            // Stop current move — movement will be driven by following the target
+            player.targetX = player.x;
+            player.targetY = player.y;
             break;
           case 'ability':
             // TODO: Phase 5 — ability system
+            break;
+          case 'stop':
+            player.targetX = player.x;
+            player.targetY = player.y;
+            player.attackTargetId = '';
             break;
         }
       }

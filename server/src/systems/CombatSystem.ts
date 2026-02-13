@@ -35,11 +35,36 @@ export function updateCombat(state: GameState, dt: number) {
     player.isAttacking = false;
   });
 
-  // Player auto-attacks: attack nearest enemy in range
+  // Player auto-attacks: prioritize click target, else attack nearest enemy in range
   state.players.forEach((player) => {
     if (!player.alive || player.attackCooldown > 0) return;
 
-    const target = findNearestEnemyInRange(state, player, PLAYER_ATTACK_RANGE);
+    let target: CombatTarget | null = null;
+
+    // If player has a specific attack target, try that first
+    if (player.attackTargetId) {
+      const chosen = findEntityById(state, player.attackTargetId);
+      if (chosen) {
+        // Check range to the chosen target
+        const targetPos = getTargetPosition(state, chosen);
+        if (targetPos) {
+          const dist = distance(player.x, player.y, targetPos.x, targetPos.y);
+          if (dist <= PLAYER_ATTACK_RANGE + targetPos.radius) {
+            target = chosen;
+          }
+          // else: not in range yet — movement system is bringing us closer
+        }
+      } else {
+        // Target dead/gone — clear it
+        player.attackTargetId = '';
+      }
+    }
+
+    // Fall back to auto-attack nearest enemy if no specific target (or target out of range)
+    if (!target && !player.attackTargetId) {
+      target = findNearestEnemyInRange(state, player, PLAYER_ATTACK_RANGE);
+    }
+
     if (!target) return;
 
     applyDamage(state, player, target, PLAYER_ATTACK_DAMAGE);
@@ -105,6 +130,25 @@ type CombatTarget =
   | { kind: 'minion'; entity: Minion }
   | { kind: 'objective' }
   | { kind: 'base'; teamIndex: number };
+
+function getTargetPosition(
+  state: GameState,
+  target: CombatTarget
+): { x: number; y: number; radius: number } | null {
+  switch (target.kind) {
+    case 'player':
+      return { x: target.entity.x, y: target.entity.y, radius: 0 };
+    case 'minion':
+      return { x: target.entity.x, y: target.entity.y, radius: 0 };
+    case 'objective':
+      return { x: state.objective.x, y: state.objective.y, radius: OBJECTIVE_RADIUS };
+    case 'base': {
+      const base = state.bases.get(String(target.teamIndex));
+      if (!base) return null;
+      return { x: base.x, y: base.y, radius: BASE_RADIUS };
+    }
+  }
+}
 
 function findNearestEnemyInRange(
   state: GameState,

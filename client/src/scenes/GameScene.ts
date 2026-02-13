@@ -8,6 +8,8 @@ import {
   TEAM_COLORS,
   TEAM_COLOR_STRINGS,
   NUM_TEAMS,
+  OBJECTIVE_RADIUS,
+  BASE_RADIUS,
 } from '../shared/constants';
 
 interface GameOverData {
@@ -26,6 +28,8 @@ export class GameScene extends Phaser.Scene {
   private mapBackground!: Phaser.GameObjects.Graphics;
   private disconnectOverlay: Phaser.GameObjects.Container | null = null;
   private gameOver: boolean = false;
+  private currentTargetId: string = '';
+  private targetHighlight: Phaser.GameObjects.Graphics | null = null;
 
   constructor() {
     super({ key: 'GameScene' });
@@ -44,15 +48,29 @@ export class GameScene extends Phaser.Scene {
     this.drawMap();
     this.connectToGame();
 
-    // Click-to-move input
+    // Create target highlight graphic
+    this.targetHighlight = this.add.graphics();
+    this.targetHighlight.setDepth(100);
+
+    // Click-to-move / click-to-attack input
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (this.gameOver) return;
       const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
-      networkClient.sendInput({
-        type: 'move',
-        x: worldPoint.x,
-        y: worldPoint.y,
-      });
+
+      // Hit test entities — priority: enemy players > enemy minions > objective > enemy bases
+      const targetId = this.hitTestEntities(worldPoint.x, worldPoint.y);
+
+      if (targetId) {
+        this.currentTargetId = targetId;
+        networkClient.sendInput({ type: 'attack', targetId });
+      } else {
+        this.currentTargetId = '';
+        networkClient.sendInput({
+          type: 'move',
+          x: worldPoint.x,
+          y: worldPoint.y,
+        });
+      }
     });
 
     // Scroll wheel to zoom camera
@@ -182,6 +200,9 @@ export class GameScene extends Phaser.Scene {
       this.objectiveSprite.updateFromState(room.state.objective);
     }
 
+    // Draw target highlight ring
+    this.drawTargetHighlight();
+
     // Update base visuals (HP bars + destroyed/captured state)
     room.state.bases.forEach((base: any, key: string) => {
       const baseSprite = this.baseSprites.get(key);
@@ -224,6 +245,130 @@ export class GameScene extends Phaser.Scene {
         baseSprite.setAlpha(0.2);
       }
     });
+  }
+
+  /**
+   * Hit test click position against enemy entities.
+   * Returns entity ID if hit, or empty string if no target.
+   */
+  private hitTestEntities(wx: number, wy: number): string {
+    const room = networkClient.gameRoom;
+    if (!room) return '';
+
+    const distSq = (ax: number, ay: number, bx: number, by: number) =>
+      (ax - bx) ** 2 + (ay - by) ** 2;
+
+    // 1. Enemy players (hit radius ~20px)
+    const PLAYER_HIT_RADIUS = 20;
+    let closestId = '';
+    let closestDist = Infinity;
+
+    room.state.players.forEach((player: any, key: string) => {
+      if (!player.alive || player.teamIndex === this.myTeamIndex) return;
+      const d = distSq(wx, wy, player.x, player.y);
+      if (d <= PLAYER_HIT_RADIUS ** 2 && d < closestDist) {
+        closestDist = d;
+        closestId = key; // sessionId
+      }
+    });
+    if (closestId) return closestId;
+
+    // 2. Enemy minions (hit radius ~16px)
+    const MINION_HIT_RADIUS = 16;
+    closestDist = Infinity;
+
+    room.state.minions.forEach((minion: any, key: string) => {
+      if (minion.teamIndex === this.myTeamIndex || minion.hp <= 0) return;
+      const d = distSq(wx, wy, minion.x, minion.y);
+      if (d <= MINION_HIT_RADIUS ** 2 && d < closestDist) {
+        closestDist = d;
+        closestId = key; // e.g. "minion_0"
+      }
+    });
+    if (closestId) return closestId;
+
+    // 3. Central objective
+    if (room.state.objective && room.state.objective.hp > 0) {
+      const d = Math.sqrt(distSq(wx, wy, room.state.objective.x, room.state.objective.y));
+      if (d <= OBJECTIVE_RADIUS + 10) {
+        return 'objective';
+      }
+    }
+
+    // 4. Enemy bases
+    room.state.bases.forEach((base: any, key: string) => {
+      if (base.teamIndex === this.myTeamIndex || base.destroyed) return;
+      const d = Math.sqrt(distSq(wx, wy, base.x, base.y));
+      if (d <= BASE_RADIUS + 10 && d < closestDist) {
+        closestDist = d;
+        closestId = `base_${base.teamIndex}`;
+      }
+    });
+    if (closestId) return closestId;
+
+    return '';
+  }
+
+  /**
+   * Draw a pulsing ring around the currently targeted entity.
+   */
+  private drawTargetHighlight() {
+    if (!this.targetHighlight) return;
+    this.targetHighlight.clear();
+
+    if (!this.currentTargetId) return;
+
+    const room = networkClient.gameRoom;
+    if (!room) return;
+
+    let tx = 0, ty = 0, radius = 16;
+    let found = false;
+
+    if (this.currentTargetId === 'objective') {
+      if (room.state.objective && room.state.objective.hp > 0) {
+        tx = room.state.objective.x;
+        ty = room.state.objective.y;
+        radius = OBJECTIVE_RADIUS + 6;
+        found = true;
+      }
+    } else if (this.currentTargetId.startsWith('base_')) {
+      const teamIdx = this.currentTargetId.replace('base_', '');
+      const base = room.state.bases.get(teamIdx);
+      if (base && !base.destroyed) {
+        tx = base.x;
+        ty = base.y;
+        radius = BASE_RADIUS + 6;
+        found = true;
+      }
+    } else {
+      // Could be a player or minion
+      const player = room.state.players.get(this.currentTargetId);
+      if (player && player.alive) {
+        tx = player.x;
+        ty = player.y;
+        radius = 18;
+        found = true;
+      } else {
+        const minion = room.state.minions.get(this.currentTargetId);
+        if (minion && minion.hp > 0) {
+          tx = minion.x;
+          ty = minion.y;
+          radius = 14;
+          found = true;
+        }
+      }
+    }
+
+    if (!found) {
+      // Target is dead/gone
+      this.currentTargetId = '';
+      return;
+    }
+
+    // Draw pulsing ring
+    const pulse = 0.8 + Math.sin(this.time.now / 200) * 0.2;
+    this.targetHighlight.lineStyle(2, 0xff6600, pulse);
+    this.targetHighlight.strokeCircle(tx, ty, radius);
   }
 
   private showVictoryScreen(data: GameOverData) {
