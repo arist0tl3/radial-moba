@@ -58,6 +58,7 @@ This project uses the following free asset packs:
 
 - **[Tiny RPG Character Asset Pack](https://zerie.itch.io/tiny-rpg-character-asset-pack)** by Zerie — Soldier and Orc spritesheets used for player and minion animations
 - **[Pixel Art Top Down - Basic](https://cainos.itch.io/pixel-art-top-down-basic)** by Cainos — Props and structure sprites used for bases and the central objective
+- **[Cursor Pack](https://kenney-assets.itch.io/cursor-pack)** by Kenny Assets - Cursor sprites
 
 ## Status
 
