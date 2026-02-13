@@ -41,11 +41,11 @@ Server runs on `http://localhost:2567`, client on `http://localhost:3000`.
 │   └── src/
 │       ├── rooms/   # LobbyRoom, GameRoom
 │       ├── state/   # Colyseus schema definitions
-│       ├── systems/ # Movement, Combat, MinionAI, WinCondition
+│       ├── systems/ # Movement, Combat, MinionAI, BotAI, Collision, WinCondition
 │       └── shared/  # Constants (source of truth)
 ├── client/          # Phaser 3 + Vite client
 │   └── src/
-│       ├── scenes/  # Lobby, Game, HUD
+│       ├── scenes/  # Preload, Lobby, Game, HUD
 │       ├── entities/# Player, Minion, Objective sprites
 │       ├── network/ # Colyseus client wrapper
 │       └── shared/  # Constants (synced copy)

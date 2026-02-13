@@ -41,19 +41,39 @@ This file describes the AI agents that have contributed to this project and thei
 - **Objective HP reduced to 500** for faster testing (was 10,000)
 - **Learned Phaser lesson**: Interactive objects inside Containers with `setScrollFactor(0)` have broken hit areas — placed victory UI elements directly on the scene instead
 
-### What was NOT done (as of Session 3)
+### Session 4 — Sprite Art, Collision, Combat Animations (2026-02-13)
+
+- **Sprite art integration**: Replaced all placeholder circles with real sprites — soldier (idle/walk/attack/death) for players, orc for minions, statue for bases. Added PreloadScene for asset loading.
+- **Collision detection**: Created `CollisionSystem.ts` — circle-circle separation for player↔player, player↔minion, minion↔minion. Mobile entities pushed away from static entities (bases, objective). Friendly bases and captured bases passable for owning/capturing team.
+- **Auto-attack animations**: Added `isAttacking` boolean pulse to Player schema. Server sets true on damage tick, clears next tick. Client plays one-shot `soldier-attack` / `orc-attack` animation when flag is set.
+- **Minion HP bars**: 30x3px colored bar (green/yellow/red) above each minion sprite.
+- **Minion attack range tuned**: Reduced `MINION_ATTACK_RANGE` from 40 to 20 (aggro range stays 150).
+
+### Session 5 — Base Capture, Click-to-Attack, Cursors, AI Bots (2026-02-13)
+
+- **Base capture mechanic**: Destroying a base no longer eliminates the team immediately. Instead, the base is captured (`capturedByTeam`), the capturing team spawns minions from it, and the losing team can no longer respawn. Team is eliminated only when base destroyed AND all players dead.
+- **Base HP bars**: 50x5px team-colored HP bars above each base.
+- **Objective HP increased to 10,000** for longer games.
+- **Click-to-attack targeting**: Added `attackTargetId` to Player schema. Click enemy entity → player walks toward it → attacks when in range. Hit testing on client (players > minions > objective > bases). Pulsing orange ring highlights selected target.
+- **Custom SVG cursors**: Sci-fi pointer for normal navigation, sword cursor when hovering over attackable enemies.
+- **AI bot players**: Server-side bots fill empty teams on game start. BotAI system runs each tick — finds nearest enemy (players > minions > bases > objective), sets `attackTargetId`, lets existing Movement/Combat systems handle the rest. Lobby allows solo start with bots filling remaining teams.
+- **Teams reduced to 1 player each** for MVP testing with bots.
+
+### What was NOT done (as of Session 5)
 
 - No Colyseus schema codegen — client state listeners still use `any` types
-- No real art, tilemaps, or Tiled integration
+- No tilemaps or Tiled integration
 - No client-side prediction or interpolation tuning
 - No ability system implementation
 - No minion pathfinding improvements (still walks straight to center)
+- No defensive structure attacks (bases/objective don't fight back)
+- No hero leveling system
 
 ### Patterns and conventions established
 
 - Server-authoritative model: clients send inputs, server validates and broadcasts state
 - Fixed timestep game loop at 20 ticks/second
-- Systems architecture: MovementSystem, CombatSystem, MinionAI, WinCondition as pure functions operating on GameState
+- Systems architecture: MovementSystem, CombatSystem, MinionAI, CollisionSystem, BotAI, WinCondition as pure functions operating on GameState
 - Client sprites wrap Phaser game objects and update via `updateFromState()` from Colyseus state listeners
 - Shared constants live in `server/src/shared/` and sync to `client/src/shared/` via `sync.sh`
 - Reconnection uses `sessionStorage` for browser-refresh survival and in-memory tokens for network-drop recovery

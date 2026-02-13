@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.5.0] - 2026-02-13
+
+### Added
+
+- **AI bot players**: Server-side bots fill empty teams when the game starts. BotAI system runs each tick — finds nearest enemy target and sets `attackTargetId`. Existing Movement and Combat systems handle the rest. Solo players can start a full 4-team game.
+- **Click-to-attack targeting**: Click an enemy player, minion, base, or the objective to walk toward and attack it. Pulsing orange ring highlights the selected target. Ground click cancels the attack.
+- **Custom SVG cursors**: Sci-fi pointer for default navigation, sword cursor when hovering over attackable enemies.
+
+### Changed
+
+- **Teams reduced to 1 player each** (`PLAYERS_PER_TEAM = 1`) for MVP testing with bots.
+- **Lobby allows solo start**: `checkAllReady()` now requires only 1 player (bots fill the rest).
+
+## [0.4.0] - 2026-02-13
+
+### Added
+
+- **Sprite art**: Replaced placeholder circles with real sprites — soldier spritesheets (idle/walk/attack/death) for players, orc spritesheets for minions, statue sprite for bases. Added `PreloadScene` for asset loading.
+- **Collision detection**: New `CollisionSystem` with circle-circle separation — players block each other, minions block each other, both pushed away from bases and objective.
+- **Auto-attack animations**: `isAttacking` boolean pulse on Player schema triggers one-shot attack animations on client.
+- **Minion HP bars**: Small colored bar (green/yellow/red) above each minion.
+- **Base capture mechanic**: Destroying a base captures it instead of eliminating the team. Capturing team spawns minions from the captured base. Losing team can no longer respawn but stays alive until killed.
+- **Base HP bars**: Team-colored HP bars above each base.
+
+### Changed
+
+- **Minion attack range reduced** from 40 to 20 (aggro range stays 150).
+- **Objective HP increased to 10,000** for longer games.
+
 ## [0.3.0] - 2026-02-12
 
 ### Added
