@@ -10,6 +10,10 @@ import {
   OBJECTIVE_ATTACK_COOLDOWN,
   OBJECTIVE_RADIUS,
   PROJECTILE_SPEED,
+  TOWER_ATTACK_DAMAGE,
+  TOWER_ATTACK_RANGE,
+  TOWER_ATTACK_COOLDOWN,
+  TOWER_RADIUS,
 } from '../shared/constants';
 
 let projectileIdCounter = 0;
@@ -141,6 +145,29 @@ export function updateStructureAttacks(state: GameState, dt: number) {
       }
     }
   }
+
+  // Towers fire at enemies (neutral — attacks all teams)
+  state.towers.forEach((tower) => {
+    if (tower.destroyed) return;
+
+    if (tower.attackCooldown > 0) {
+      tower.attackCooldown = Math.max(0, tower.attackCooldown - dtMs);
+      return;
+    }
+
+    const targetId = findStructureTarget(
+      state,
+      tower.x,
+      tower.y,
+      TOWER_ATTACK_RANGE + TOWER_RADIUS,
+      -1 // Neutral — attacks everyone
+    );
+
+    if (targetId) {
+      spawnProjectile(state, tower.x, tower.y, targetId, TOWER_ATTACK_DAMAGE, -1);
+      tower.attackCooldown = TOWER_ATTACK_COOLDOWN;
+    }
+  });
 }
 
 /**

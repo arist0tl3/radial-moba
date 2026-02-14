@@ -61,6 +61,16 @@ export const OBJECTIVE_MINIONS_PER_BASE = 2; // spawned per active base each wav
 // Projectiles
 export const PROJECTILE_SPEED = 400; // pixels per second
 
+// Lane towers (neutral)
+export const TOWER_HP = 1500;
+export const TOWER_RADIUS = 32;
+export const TOWER_ATTACK_DAMAGE = 35;
+export const TOWER_ATTACK_RANGE = 175;
+export const TOWER_ATTACK_COOLDOWN = 1500; // ms
+export const TOWER_RADIUS_PERCENT = 0.50; // Position at 50% between base and center
+export const TOWER_MINION_SPAWN_INTERVAL = 40000; // ms
+export const TOWER_MINIONS_PER_WAVE = 2;
+
 // Bots
 export const BOT_SCAN_RANGE = 500; // How far bots look for targets
 export const BOT_RETREAT_HP_PERCENT = 0.3; // Retreat below 30% HP

@@ -11,6 +11,7 @@ import {
   NUM_TEAMS,
   OBJECTIVE_RADIUS,
   BASE_RADIUS,
+  TOWER_RADIUS,
 } from '../shared/constants';
 
 interface GameOverData {
@@ -24,6 +25,8 @@ export class GameScene extends Phaser.Scene {
   private objectiveSprite: ObjectiveSprite | null = null;
   private baseSprites: Map<string, Phaser.GameObjects.Sprite> = new Map();
   private baseHpBars: Map<string, Phaser.GameObjects.Graphics> = new Map();
+  private towerGraphics: Map<string, Phaser.GameObjects.Graphics> = new Map();
+  private towerHpBars: Map<string, Phaser.GameObjects.Graphics> = new Map();
   private myTeamIndex: number = 0;
   private gameRoomId: string = '';
   private mapBackground!: Phaser.GameObjects.Graphics;
@@ -122,6 +125,16 @@ export class GameScene extends Phaser.Scene {
     // Center zone indicator
     g.lineStyle(2, 0x888888, 0.3);
     g.strokeCircle(cx, cy, 100);
+
+    // Tower position indicators (subtle dots at 50% radius on each lane)
+    g.fillStyle(0x666666, 0.3);
+    for (let i = 0; i < NUM_TEAMS; i++) {
+      const angle = (i / NUM_TEAMS) * Math.PI * 2 - Math.PI / 2;
+      const towerDist = MAP_RADIUS * 0.50;
+      const ttx = cx + Math.cos(angle) * towerDist;
+      const tty = cy + Math.sin(angle) * towerDist;
+      g.fillCircle(ttx, tty, 6);
+    }
   }
 
   private async connectToGame() {
@@ -185,6 +198,27 @@ export class GameScene extends Phaser.Scene {
         const hpBar = this.add.graphics();
         hpBar.setDepth(4);
         this.baseHpBars.set(key, hpBar);
+      });
+
+      // Towers
+      room.state.towers.onAdd((tower: any, key: string) => {
+        const gfx = this.add.graphics();
+        gfx.setDepth(3);
+        this.towerGraphics.set(key, gfx);
+
+        const hpBar = this.add.graphics();
+        hpBar.setDepth(4);
+        this.towerHpBars.set(key, hpBar);
+      });
+
+      room.state.towers.onRemove((_tower: any, key: string) => {
+        const gfx = this.towerGraphics.get(key);
+        gfx?.destroy();
+        this.towerGraphics.delete(key);
+
+        const hpBar = this.towerHpBars.get(key);
+        hpBar?.destroy();
+        this.towerHpBars.delete(key);
       });
 
       // Launch HUD scene on top
@@ -277,6 +311,48 @@ export class GameScene extends Phaser.Scene {
         baseSprite.setAlpha(0.2);
       }
     });
+
+    // Update tower visuals
+    room.state.towers.forEach((tower: any, key: string) => {
+      const gfx = this.towerGraphics.get(key);
+      const hpBar = this.towerHpBars.get(key);
+      if (!gfx) return;
+
+      gfx.clear();
+      if (!tower.destroyed) {
+        // Tower body: neutral gray structure
+        gfx.fillStyle(0x888888, 0.6);
+        gfx.fillCircle(tower.x, tower.y, TOWER_RADIUS);
+        gfx.lineStyle(3, 0xaaaaaa, 0.9);
+        gfx.strokeCircle(tower.x, tower.y, TOWER_RADIUS);
+        // Inner core
+        gfx.fillStyle(0xcccccc, 0.4);
+        gfx.fillCircle(tower.x, tower.y, TOWER_RADIUS * 0.4);
+      } else {
+        // Destroyed: dim rubble
+        gfx.fillStyle(0x444444, 0.2);
+        gfx.fillCircle(tower.x, tower.y, TOWER_RADIUS * 0.7);
+      }
+
+      // HP bar
+      if (hpBar) {
+        hpBar.clear();
+        if (!tower.destroyed) {
+          const barWidth = 40;
+          const barHeight = 4;
+          const bx = tower.x - barWidth / 2;
+          const by = tower.y - TOWER_RADIUS - 12;
+          const hpPct = Math.max(0, tower.hp / tower.maxHp);
+
+          hpBar.fillStyle(0x333333, 0.8);
+          hpBar.fillRect(bx, by, barWidth, barHeight);
+          hpBar.fillStyle(0xaaaaaa, 1); // Neutral gray HP bar
+          hpBar.fillRect(bx, by, barWidth * hpPct, barHeight);
+          hpBar.lineStyle(1, 0xffffff, 0.5);
+          hpBar.strokeRect(bx - 1, by - 1, barWidth + 2, barHeight + 2);
+        }
+      }
+    });
   }
 
   /**
@@ -315,6 +391,20 @@ export class GameScene extends Phaser.Scene {
       if (d <= MINION_HIT_RADIUS ** 2 && d < closestDist) {
         closestDist = d;
         closestId = key; // e.g. "minion_0"
+      }
+    });
+    if (closestId) return closestId;
+
+    // 2.5. Towers (neutral — always attackable)
+    const TOWER_HIT_RADIUS = TOWER_RADIUS + 10;
+    closestDist = Infinity;
+
+    room.state.towers.forEach((tower: any, key: string) => {
+      if (tower.destroyed) return;
+      const d = Math.sqrt(distSq(wx, wy, tower.x, tower.y));
+      if (d <= TOWER_HIT_RADIUS && d < closestDist) {
+        closestDist = d;
+        closestId = `tower_${key}`;
       }
     });
     if (closestId) return closestId;
@@ -361,6 +451,15 @@ export class GameScene extends Phaser.Scene {
         tx = room.state.objective.x;
         ty = room.state.objective.y;
         radius = OBJECTIVE_RADIUS + 6;
+        found = true;
+      }
+    } else if (this.currentTargetId.startsWith('tower_')) {
+      const towerKey = this.currentTargetId.replace('tower_', '');
+      const tower = room.state.towers.get(towerKey);
+      if (tower && !tower.destroyed) {
+        tx = tower.x;
+        ty = tower.y;
+        radius = TOWER_RADIUS + 6;
         found = true;
       }
     } else if (this.currentTargetId.startsWith('base_')) {

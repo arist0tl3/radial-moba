@@ -4,6 +4,7 @@ import {
   MINION_COLLISION_RADIUS,
   OBJECTIVE_RADIUS,
   BASE_RADIUS,
+  TOWER_RADIUS,
 } from '../shared/constants';
 
 function distance(ax: number, ay: number, bx: number, by: number): number {
@@ -111,6 +112,22 @@ export function updateCollisions(state: GameState) {
       if (base.destroyed && base.capturedByTeam === minion.teamIndex) continue;
       if (base.destroyed && base.capturedByTeam < 0) continue; // destroyed, uncaptured — no collision
       separateFromStatic(minion, base, MINION_COLLISION_RADIUS, BASE_RADIUS);
+    }
+  });
+
+  // Player ↔ Towers (static, neutral = collide with everyone)
+  state.towers.forEach((tower) => {
+    if (tower.destroyed) return;
+    for (const player of players) {
+      separateFromStatic(player, tower, PLAYER_COLLISION_RADIUS, TOWER_RADIUS);
+    }
+  });
+
+  // Minion ↔ Towers (static, neutral = collide with everyone)
+  state.towers.forEach((tower) => {
+    if (tower.destroyed) return;
+    for (const minion of minions) {
+      separateFromStatic(minion, tower, MINION_COLLISION_RADIUS, TOWER_RADIUS);
     }
   });
 }

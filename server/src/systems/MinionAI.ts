@@ -9,6 +9,7 @@ import {
   MAP_RADIUS,
   NUM_TEAMS,
   OBJECTIVE_MINIONS_PER_BASE,
+  TOWER_MINIONS_PER_WAVE,
 } from '../shared/constants';
 
 let minionIdCounter = 0;
@@ -75,6 +76,32 @@ export function spawnObjectiveMinionWave(state: GameState) {
       minion.maxHp = MINION_HP;
       minion.state = 'walking';
       minion.targetId = `base_${base.teamIndex}`; // Walk toward this base
+      state.minions.set(minion.id, minion);
+    }
+  });
+}
+
+/**
+ * Spawn neutral minions from each alive tower heading toward the base in that lane.
+ */
+export function spawnTowerMinionWave(state: GameState) {
+  state.towers.forEach((tower) => {
+    if (tower.destroyed) return;
+
+    // Only spawn if the target base is still alive
+    const targetBase = state.bases.get(String(tower.laneTeamIndex));
+    if (!targetBase || targetBase.destroyed) return;
+
+    for (let i = 0; i < TOWER_MINIONS_PER_WAVE; i++) {
+      const minion = new Minion();
+      minion.id = `minion_${minionIdCounter++}`;
+      minion.teamIndex = -1; // Neutral — hostile to all
+      minion.x = tower.x + (i - 0.5) * 15;
+      minion.y = tower.y + (i - 0.5) * 15;
+      minion.hp = MINION_HP;
+      minion.maxHp = MINION_HP;
+      minion.state = 'walking';
+      minion.targetId = `base_${tower.laneTeamIndex}`; // Walk toward the lane's base
       state.minions.set(minion.id, minion);
     }
   });
@@ -161,6 +188,18 @@ function checkForAggroTargets(state: GameState, minion: Minion) {
     });
   }
 
+  // Team minions: attack nearby towers (neutral structures in their path)
+  if (!nearestId && minion.teamIndex >= 0) {
+    state.towers.forEach((tower, key) => {
+      if (tower.destroyed) return;
+      const dist = distance(minion.x, minion.y, tower.x, tower.y);
+      if (dist < MINION_AGGRO_RANGE && dist < nearestDist) {
+        nearestDist = dist;
+        nearestId = `tower_${key}`;
+      }
+    });
+  }
+
   // If close to the objective, attack it (team minions only, not objective's own minions)
   if (!nearestId && minion.teamIndex >= 0) {
     const objDist = distance(minion.x, minion.y, state.objective.x, state.objective.y);
@@ -235,6 +274,13 @@ function getTargetPosition(
     const teamIndex = parseInt(targetId.replace('base_', ''), 10);
     const base = state.bases.get(String(teamIndex));
     if (base && !base.destroyed) return { x: base.x, y: base.y };
+    return null;
+  }
+
+  if (targetId.startsWith('tower_')) {
+    const key = targetId.replace('tower_', '');
+    const tower = state.towers.get(key);
+    if (tower && !tower.destroyed) return { x: tower.x, y: tower.y };
     return null;
   }
 

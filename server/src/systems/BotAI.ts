@@ -12,6 +12,8 @@ import {
   OBJECTIVE_ATTACK_RANGE,
   BASE_RADIUS,
   BASE_ATTACK_RANGE,
+  TOWER_ATTACK_RANGE,
+  TOWER_RADIUS,
 } from '../shared/constants';
 
 function distance(ax: number, ay: number, bx: number, by: number): number {
@@ -30,6 +32,12 @@ function isTargetValid(state: GameState, targetId: string): boolean {
     const teamIndex = parseInt(targetId.replace('base_', ''), 10);
     const base = state.bases.get(String(teamIndex));
     return !!base && !base.destroyed;
+  }
+
+  if (targetId.startsWith('tower_')) {
+    const key = targetId.replace('tower_', '');
+    const tower = state.towers.get(key);
+    return !!tower && !tower.destroyed;
   }
 
   const player = state.players.get(targetId);
@@ -124,6 +132,17 @@ function getStructureInfo(
     };
   }
 
+  if (targetId.startsWith('tower_')) {
+    const key = targetId.replace('tower_', '');
+    const tower = state.towers.get(key);
+    if (!tower || tower.destroyed) return null;
+    return {
+      x: tower.x,
+      y: tower.y,
+      safeRange: TOWER_ATTACK_RANGE + TOWER_RADIUS + BOT_STRUCTURE_SAFE_DIST,
+    };
+  }
+
   return null; // Not a structure
 }
 
@@ -159,7 +178,13 @@ function findBotTarget(state: GameState, bot: Player): string {
   });
   if (nearestId) return nearestId;
 
-  // 3. Nearest enemy base (any distance) — but only if minions are escorting
+  // 3. Own lane tower (neutral structure blocking path to center)
+  const ownLaneTower = state.towers.get(String(bot.teamIndex));
+  if (ownLaneTower && !ownLaneTower.destroyed) {
+    return `tower_${bot.teamIndex}`;
+  }
+
+  // 4. Nearest enemy base (any distance) — but only if minions are escorting
   nearestDist = Infinity;
   let bestBaseId = '';
   state.bases.forEach((base) => {
@@ -181,7 +206,7 @@ function findBotTarget(state: GameState, bot: Player): string {
     return bestBaseId;
   }
 
-  // 4. Central objective (always available as fallback)
+  // 5. Central objective (always available as fallback)
   if (state.objective.hp > 0) {
     return 'objective';
   }

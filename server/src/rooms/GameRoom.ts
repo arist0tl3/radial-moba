@@ -4,9 +4,10 @@ import { Player } from '../state/Player';
 import { Team } from '../state/Team';
 import { Base } from '../state/Base';
 import { CentralObjective } from '../state/CentralObjective';
+import { Tower } from '../state/Tower';
 import { updateMovement } from '../systems/MovementSystem';
 import { updateCombat, checkTeamElimination } from '../systems/CombatSystem';
-import { updateMinionAI, spawnMinionWave, spawnObjectiveMinionWave } from '../systems/MinionAI';
+import { updateMinionAI, spawnMinionWave, spawnObjectiveMinionWave, spawnTowerMinionWave } from '../systems/MinionAI';
 import { updateCollisions } from '../systems/CollisionSystem';
 import { checkWinConditions } from '../systems/WinCondition';
 import { updateBotAI } from '../systems/BotAI';
@@ -20,6 +21,9 @@ import {
   OBJECTIVE_HP,
   BASE_HP,
   OBJECTIVE_MINION_SPAWN_INTERVAL,
+  TOWER_HP,
+  TOWER_RADIUS_PERCENT,
+  TOWER_MINION_SPAWN_INTERVAL,
 } from '../shared/constants';
 
 interface MoveInput {
@@ -49,6 +53,7 @@ export class GameRoom extends Room<GameState> {
   private gameLoopInterval: ReturnType<typeof setInterval> | null = null;
   private minionSpawnTimer: number = 0;
   private objectiveMinionTimer: number = 0;
+  private towerMinionTimer: number = 0;
   private inputQueue: Map<string, PlayerInput[]> = new Map();
   private expectedPlayers: number = 0;
   private teamAssignments: Record<string, number> = {};
@@ -153,6 +158,21 @@ export class GameRoom extends Room<GameState> {
       base.hp = BASE_HP;
       base.maxHp = BASE_HP;
       this.state.bases.set(String(i), base);
+    }
+
+    // Create lane towers (neutral, one per lane)
+    for (let i = 0; i < NUM_TEAMS; i++) {
+      const angle = (i / NUM_TEAMS) * Math.PI * 2 - Math.PI / 2;
+      const tower = new Tower();
+      tower.id = `tower_${i}`;
+      tower.teamIndex = -1; // Neutral
+      tower.laneTeamIndex = i;
+      const towerDist = MAP_RADIUS * TOWER_RADIUS_PERCENT;
+      tower.x = MAP_RADIUS + Math.cos(angle) * towerDist;
+      tower.y = MAP_RADIUS + Math.sin(angle) * towerDist;
+      tower.hp = TOWER_HP;
+      tower.maxHp = TOWER_HP;
+      this.state.towers.set(String(i), tower);
     }
 
     // Create central objective
@@ -282,6 +302,13 @@ export class GameRoom extends Room<GameState> {
     if (this.objectiveMinionTimer >= OBJECTIVE_MINION_SPAWN_INTERVAL) {
       spawnObjectiveMinionWave(this.state);
       this.objectiveMinionTimer = 0;
+    }
+
+    // 10.5. Spawn tower minions on timer
+    this.towerMinionTimer += TICK_INTERVAL;
+    if (this.towerMinionTimer >= TOWER_MINION_SPAWN_INTERVAL) {
+      spawnTowerMinionWave(this.state);
+      this.towerMinionTimer = 0;
     }
 
     // 11. Check win conditions

@@ -14,6 +14,7 @@ import {
   MINION_ATTACK_COOLDOWN,
   OBJECTIVE_RADIUS,
   BASE_RADIUS,
+  TOWER_RADIUS,
 } from '../shared/constants';
 
 function distance(ax: number, ay: number, bx: number, by: number): number {
@@ -149,7 +150,8 @@ type CombatTarget =
   | { kind: 'player'; entity: Player }
   | { kind: 'minion'; entity: Minion }
   | { kind: 'objective' }
-  | { kind: 'base'; teamIndex: number };
+  | { kind: 'base'; teamIndex: number }
+  | { kind: 'tower'; towerKey: string };
 
 function getTargetPosition(
   state: GameState,
@@ -166,6 +168,11 @@ function getTargetPosition(
       const base = state.bases.get(String(target.teamIndex));
       if (!base) return null;
       return { x: base.x, y: base.y, radius: BASE_RADIUS };
+    }
+    case 'tower': {
+      const tower = state.towers.get(target.towerKey);
+      if (!tower) return null;
+      return { x: tower.x, y: tower.y, radius: TOWER_RADIUS };
     }
   }
 }
@@ -215,6 +222,16 @@ function findNearestEnemyInRange(
     }
   });
 
+  // Check towers (neutral — always enemies)
+  state.towers.forEach((tower, key) => {
+    if (tower.destroyed) return;
+    const dist = distance(attacker.x, attacker.y, tower.x, tower.y);
+    if (dist <= range + TOWER_RADIUS && dist < nearestDist) {
+      nearestDist = dist;
+      nearest = { kind: 'tower', towerKey: key };
+    }
+  });
+
   return nearest;
 }
 
@@ -246,6 +263,17 @@ function applyDamage(
         if (base.hp <= 0) {
           base.destroyed = true;
           base.capturedByTeam = attacker.teamIndex;
+        }
+      }
+      break;
+    }
+    case 'tower': {
+      const tower = state.towers.get(target.towerKey);
+      if (tower) {
+        tower.hp -= damage;
+        if (tower.hp <= 0) {
+          tower.hp = 0;
+          tower.destroyed = true;
         }
       }
       break;
@@ -285,6 +313,17 @@ function applyDamageFromMinion(
       }
       break;
     }
+    case 'tower': {
+      const tower = state.towers.get(target.towerKey);
+      if (tower) {
+        tower.hp -= damage;
+        if (tower.hp <= 0) {
+          tower.hp = 0;
+          tower.destroyed = true;
+        }
+      }
+      break;
+    }
   }
 }
 
@@ -294,6 +333,13 @@ function findEntityById(state: GameState, id: string): CombatTarget | null {
     const teamIndex = parseInt(id.replace('base_', ''), 10);
     const base = state.bases.get(String(teamIndex));
     if (base && !base.destroyed) return { kind: 'base', teamIndex };
+    return null;
+  }
+
+  if (id.startsWith('tower_')) {
+    const key = id.replace('tower_', '');
+    const tower = state.towers.get(key);
+    if (tower && !tower.destroyed) return { kind: 'tower', towerKey: key };
     return null;
   }
 
