@@ -34,6 +34,9 @@ export const PLAYER_ABILITY_RANGE = 200;
 export const PLAYER_ABILITY_COOLDOWN = 5000; // ms
 export const PLAYER_RESPAWN_BASE = 5000; // ms, increases with deaths
 export const PLAYER_COLLISION_RADIUS = 14;
+export const PLAYER_REGEN_PER_SEC = 2; // Baseline HP regen per second
+export const PLAYER_BASE_REGEN_PER_SEC = 10; // Boosted regen when near own base
+export const PLAYER_BASE_REGEN_RANGE = 200; // Distance from base center for boosted regen
 
 // Minions
 export const MINION_HP = 200;
@@ -60,6 +63,11 @@ export const PROJECTILE_SPEED = 400; // pixels per second
 
 // Bots
 export const BOT_SCAN_RANGE = 500; // How far bots look for targets
+export const BOT_RETREAT_HP_PERCENT = 0.3; // Retreat below 30% HP
+export const BOT_STRUCTURE_SAFE_DIST = 50; // Extra buffer beyond structure attack range
+export const BOT_MINION_ESCORT_RANGE = 300; // Friendly minions must be this close to structure
+export const BOT_DECISION_INTERVAL = 2000; // ms — re-evaluate targets every 2 seconds
+export const BOT_BASE_DEFEND_RANGE = 400; // How close enemies must be to own base to trigger defense
 
 // Lobby
 export const MAX_TEAMS = 4;

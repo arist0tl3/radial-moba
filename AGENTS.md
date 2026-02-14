@@ -72,7 +72,15 @@ This file describes the AI agents that have contributed to this project and thei
 - Updated `walkTowardCenter` to support outward-bound pathing for neutral minions.
 - Neutral minions skip objective aggro (they belong to it) but aggro on all team bases.
 
-### What was NOT done (as of Session 6)
+### Session 7 — Smarter Bot AI & HP Regeneration (2026-02-13)
+
+- **HP regeneration**: All players (humans + bots) regenerate HP. Baseline 2 HP/sec everywhere, boosted to 10 HP/sec when near own base (within 200px). Makes retreat a meaningful strategic choice.
+- **Bot retreat behavior**: Bots disengage and run to their base when HP drops below 30%. They heal up at base and then resume attacking.
+- **Minion escort logic**: Bots no longer solo-dive structures. They check for friendly minions near a target structure (within 300px) before engaging. If no minions are present, they hold at a safe distance outside tower attack range and wait.
+- **Base defense priority**: Bots detect enemies (players or minions) near their own base (within 400px) and prioritize defending it, interrupting whatever they were doing.
+- **Decision cooldown**: Bots re-evaluate targets every 2 seconds instead of every tick, preventing erratic target-switching. Urgent interrupts (low HP, base under attack, target dies) trigger immediate re-evaluation.
+
+### What was NOT done (as of Session 7)
 
 - No Colyseus schema codegen — client state listeners still use `any` types
 - No tilemaps or Tiled integration
@@ -80,12 +88,13 @@ This file describes the AI agents that have contributed to this project and thei
 - No ability system implementation
 - No minion pathfinding improvements (still walks straight to destination)
 - No hero leveling system
+- No fog of war (bots can "see" the whole map, but so can human players)
 
 ### Patterns and conventions established
 
 - Server-authoritative model: clients send inputs, server validates and broadcasts state
 - Fixed timestep game loop at 20 ticks/second
-- Systems architecture: MovementSystem, CombatSystem, MinionAI, CollisionSystem, BotAI, WinCondition as pure functions operating on GameState
+- Systems architecture: MovementSystem, CombatSystem, MinionAI, CollisionSystem, BotAI, StructureSystem, WinCondition as pure functions operating on GameState
 - Client sprites wrap Phaser game objects and update via `updateFromState()` from Colyseus state listeners
 - Shared constants live in `server/src/shared/` and sync to `client/src/shared/` via `sync.sh`
 - Reconnection uses `sessionStorage` for browser-refresh survival and in-memory tokens for network-drop recovery

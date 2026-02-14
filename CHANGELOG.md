@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.8.0] - 2026-02-13
+
+### Added
+
+- **HP regeneration**: All players regenerate health — 2 HP/sec baseline everywhere, boosted to 10 HP/sec when near own base (within 200px). Retreat to base is now a meaningful strategic decision.
+- **Smarter bot AI**: Complete rewrite of bot decision-making with 4 new behaviors:
+  - **Retreat at low HP**: Bots disengage and run to base when below 30% HP, heal up, then resume attacking.
+  - **Minion escort**: Bots wait for friendly minions before diving structures. They hold at safe distance outside tower range until a minion wave arrives.
+  - **Base defense**: Bots prioritize defending their own base when enemies are within 400px of it.
+  - **Decision cooldown**: Bots re-evaluate targets every 2 seconds instead of every tick, with urgent interrupts for low HP, base threats, and dead targets.
+
 ## [0.7.0] - 2026-02-13
 
 ### Added

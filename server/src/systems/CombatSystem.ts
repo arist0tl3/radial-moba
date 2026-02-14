@@ -6,6 +6,9 @@ import {
   PLAYER_ATTACK_RANGE,
   PLAYER_ATTACK_COOLDOWN,
   PLAYER_RESPAWN_BASE,
+  PLAYER_REGEN_PER_SEC,
+  PLAYER_BASE_REGEN_PER_SEC,
+  PLAYER_BASE_REGEN_RANGE,
   MINION_ATTACK_DAMAGE,
   MINION_ATTACK_RANGE,
   MINION_ATTACK_COOLDOWN,
@@ -28,6 +31,23 @@ export function updateCombat(state: GameState, dt: number) {
     if (player.abilityCooldown > 0) {
       player.abilityCooldown = Math.max(0, player.abilityCooldown - dtMs);
     }
+  });
+
+  // HP regeneration for all alive players
+  state.players.forEach((player) => {
+    if (!player.alive || player.hp >= player.maxHp) return;
+
+    // Check if near own base for boosted regen
+    const base = state.bases.get(String(player.teamIndex));
+    let regenRate = PLAYER_REGEN_PER_SEC;
+    if (base && !base.destroyed) {
+      const distToBase = distance(player.x, player.y, base.x, base.y);
+      if (distToBase <= PLAYER_BASE_REGEN_RANGE) {
+        regenRate = PLAYER_BASE_REGEN_PER_SEC;
+      }
+    }
+
+    player.hp = Math.min(player.maxHp, player.hp + regenRate * dt);
   });
 
   // Clear attack flags from previous tick

@@ -18,4 +18,7 @@ export class Player extends Schema {
   @type('boolean') isAttacking: boolean = false;
   @type('string') attackTargetId: string = '';
   @type('boolean') isBot: boolean = false;
+
+  // Server-only (not synced to client) — bot decision cooldown timer
+  botDecisionTimer: number = 0;
 }
