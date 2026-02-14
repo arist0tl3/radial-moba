@@ -32,7 +32,7 @@
 
 ## Phase 4 — Minions
 
-- [x] Verify minion spawning every 30 seconds
+- [x] Verify minion spawning on timer
 - [ ] Test minion pathfinding (currently walks straight to center — no obstacle avoidance)
 - [x] Minion aggro and target acquisition working
 - [x] Minion HP bars
@@ -45,8 +45,8 @@
 - [x] Auto-attack animations (soldier-attack, orc-attack)
 - [x] Click-to-attack targeting with follow behavior
 - [x] Custom cursors (pointer + sword for attack hover)
-- [ ] Damage numbers (floating text)
-- [ ] Death animations
+- [x] Damage numbers (floating text)
+- [x] Death animations (minion orc-death animation)
 
 ## Phase 6 — AI & Gameplay
 
@@ -59,7 +59,7 @@
 - [x] Neutral lane towers: 4 aggressive towers (1 per lane) at 50% radius, attack all teams, spawn hostile minions outward
 - [x] Bot lane progression: bots clear own lane tower before pushing to bases/objective
 - [x] Team minions aggro towers while walking to center
-- [ ] Hero level-up system (XP from kills, stat scaling)
+- [x] Hero level-up system (XP from kills, stat scaling, level-up choices)
 
 ## Phase 7 — Hero Ability & Combat Feel
 
@@ -72,8 +72,14 @@
 - [ ] Design map slice in Tiled
 - [ ] Implement map generation from slice template
 - [x] Replace placeholder circles with sprite art
-- [ ] Minimap rendering
+- [x] Minimap rendering (with click-to-move)
 - [ ] Lobby UI polish
+
+## Next Priority — Fog of War
+
+- [ ] Server-side vision system: each player/team only sees entities within their vision radius
+- [ ] Client-side fog rendering: darken unseen areas, hide enemy entities outside vision
+- [ ] Bot AI uses fog of war (can only target what they "see")
 
 ## Tech Debt / Improvements
 

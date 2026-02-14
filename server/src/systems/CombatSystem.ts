@@ -15,11 +15,81 @@ import {
   OBJECTIVE_RADIUS,
   BASE_RADIUS,
   TOWER_RADIUS,
+  XP_PER_MINION_KILL,
+  XP_PER_PLAYER_KILL,
+  XP_PER_STRUCTURE_HIT,
+  XP_BASE,
+  XP_PER_LEVEL,
+  MAX_LEVEL,
+  LEVEL_BONUS_DAMAGE,
+  LEVEL_BONUS_MAX_HP,
+  LEVEL_BONUS_SPEED,
+  LEVEL_BONUS_REGEN,
+  LEVEL_BONUS_DEFENSE,
 } from '../shared/constants';
 
 function distance(ax: number, ay: number, bx: number, by: number): number {
   return Math.sqrt((ax - bx) ** 2 + (ay - by) ** 2);
 }
+
+// --- Leveling ---
+
+export type UpgradeType = 'damage' | 'maxHp' | 'speed' | 'regen' | 'defense';
+
+const ALL_UPGRADES: UpgradeType[] = ['damage', 'maxHp', 'speed', 'regen', 'defense'];
+
+function generateUpgradeChoices(): [UpgradeType, UpgradeType] {
+  const shuffled = [...ALL_UPGRADES].sort(() => Math.random() - 0.5);
+  return [shuffled[0], shuffled[1]];
+}
+
+export function applyUpgrade(player: Player, choice: UpgradeType) {
+  switch (choice) {
+    case 'damage':
+      player.bonusDamage += LEVEL_BONUS_DAMAGE;
+      break;
+    case 'maxHp':
+      player.bonusMaxHp += LEVEL_BONUS_MAX_HP;
+      player.maxHp += LEVEL_BONUS_MAX_HP;
+      player.hp += LEVEL_BONUS_MAX_HP;
+      break;
+    case 'speed':
+      player.bonusSpeed += LEVEL_BONUS_SPEED;
+      break;
+    case 'regen':
+      player.bonusRegen += LEVEL_BONUS_REGEN;
+      break;
+    case 'defense':
+      player.bonusDefense += LEVEL_BONUS_DEFENSE;
+      break;
+  }
+  player.pendingLevelUp = false;
+  player.pendingLevelUpNotified = false;
+}
+
+function awardXP(player: Player, amount: number) {
+  if (player.level >= MAX_LEVEL) return;
+
+  player.xp += amount;
+  while (player.xp >= player.xpToNextLevel && player.level < MAX_LEVEL) {
+    player.xp -= player.xpToNextLevel;
+    player.level++;
+    player.xpToNextLevel = XP_BASE + (player.level - 1) * XP_PER_LEVEL;
+
+    const choices = generateUpgradeChoices();
+    if (!player.isBot) {
+      player.pendingLevelUp = true;
+      player.pendingLevelUpNotified = false;
+      player.pendingChoices = choices;
+    } else {
+      // Bots auto-pick randomly
+      const pick = choices[Math.floor(Math.random() * choices.length)];
+      applyUpgrade(player, pick);
+    }
+  }
+}
+
+// --- Main combat update ---
 
 export function updateCombat(state: GameState, dt: number) {
   const dtMs = dt * 1000;
@@ -40,11 +110,11 @@ export function updateCombat(state: GameState, dt: number) {
 
     // Check if near own base for boosted regen
     const base = state.bases.get(String(player.teamIndex));
-    let regenRate = PLAYER_REGEN_PER_SEC;
+    let regenRate = PLAYER_REGEN_PER_SEC + player.bonusRegen;
     if (base && !base.destroyed) {
       const distToBase = distance(player.x, player.y, base.x, base.y);
       if (distToBase <= PLAYER_BASE_REGEN_RANGE) {
-        regenRate = PLAYER_BASE_REGEN_PER_SEC;
+        regenRate = PLAYER_BASE_REGEN_PER_SEC + player.bonusRegen;
       }
     }
 
@@ -88,7 +158,8 @@ export function updateCombat(state: GameState, dt: number) {
 
     if (!target) return;
 
-    applyDamage(state, player, target, PLAYER_ATTACK_DAMAGE);
+    const effectiveDamage = PLAYER_ATTACK_DAMAGE + player.bonusDamage;
+    applyDamage(state, player, target, effectiveDamage);
     player.attackCooldown = PLAYER_ATTACK_COOLDOWN;
     player.isAttacking = true;
   });
@@ -242,19 +313,26 @@ function applyDamage(
   damage: number
 ) {
   switch (target.kind) {
-    case 'player':
-      target.entity.hp -= damage;
+    case 'player': {
+      const effectiveDamage = Math.max(1, damage - target.entity.bonusDefense);
+      target.entity.hp -= effectiveDamage;
       if (target.entity.hp <= 0) {
         killPlayer(state, target.entity);
+        awardXP(attacker, XP_PER_PLAYER_KILL);
       }
       break;
+    }
     case 'minion':
       target.entity.hp -= damage;
+      if (target.entity.hp <= 0) {
+        awardXP(attacker, XP_PER_MINION_KILL);
+      }
       break;
     case 'objective':
       state.objective.hp -= damage;
       const current = state.objective.damageByTeam.get(String(attacker.teamIndex)) ?? 0;
       state.objective.damageByTeam.set(String(attacker.teamIndex), current + damage);
+      awardXP(attacker, XP_PER_STRUCTURE_HIT);
       break;
     case 'base': {
       const base = state.bases.get(String(target.teamIndex));
@@ -265,6 +343,7 @@ function applyDamage(
           base.capturedByTeam = attacker.teamIndex;
         }
       }
+      awardXP(attacker, XP_PER_STRUCTURE_HIT);
       break;
     }
     case 'tower': {
@@ -276,6 +355,7 @@ function applyDamage(
           tower.destroyed = true;
         }
       }
+      awardXP(attacker, XP_PER_STRUCTURE_HIT);
       break;
     }
   }
@@ -288,12 +368,14 @@ function applyDamageFromMinion(
   damage: number
 ) {
   switch (target.kind) {
-    case 'player':
-      target.entity.hp -= damage;
+    case 'player': {
+      const effectiveDamage = Math.max(1, damage - target.entity.bonusDefense);
+      target.entity.hp -= effectiveDamage;
       if (target.entity.hp <= 0) {
         killPlayer(state, target.entity);
       }
       break;
+    }
     case 'minion':
       target.entity.hp -= damage;
       break;

@@ -90,15 +90,31 @@ This file describes the AI agents that have contributed to this project and thei
 - **Client rendering**: Towers rendered as gray circles with inner core detail, HP bars, destroyed rubble state. Click-to-attack works on towers. Subtle gray dots on map background show tower positions.
 - **12 files modified**: constants.ts, Tower.ts, GameState.ts, GameRoom.ts, StructureSystem.ts, CombatSystem.ts, MovementSystem.ts, MinionAI.ts, CollisionSystem.ts, BotAI.ts, GameScene.ts, synced client constants.
 
-### What was NOT done (as of Session 8)
+### Session 9 — Map Scaling, Minion Tuning, QoL, Leveling (2026-02-14)
+
+- **Map scaling**: Increased `MAP_RADIUS` from 2000 to 3500, reduced `PLAYER_SPEED` from 150 to 130, set initial camera zoom to 0.7x. Cross-map travel now takes ~54s instead of ~13s.
+- **Minion wave tuning**: `MINIONS_PER_WAVE` 3→5, `MINION_SPAWN_INTERVAL` 30000→20000ms, `OBJECTIVE_MINIONS_PER_BASE` 2→3, `TOWER_MINIONS_PER_WAVE` 2→3. Creates denser lane skirmishes.
+- **Minion death animations**: `playDeathAndDestroy()` on MinionSprite plays orc-death before cleanup. Sprite removed from tracking map immediately but Phaser objects persist until animation completes (1s safety timeout).
+- **Floating damage numbers**: Client-side `prevHp` tracking for all entity types. `spawnDamageNumber()` creates Phaser text with tween (drift up 30px + fade, 800ms). Color-coded: red for allies, white for enemies, orange for objective, gray for towers.
+- **Minimap**: 160px circular overlay (bottom-right) with all entities. Click-to-move converts minimap coords to world coords. Window resize handler for background redraw.
+- **Leveling system**: Full XP/level-up system across 12 files:
+  - Player schema: `level`, `xp`, `xpToNextLevel`, 5 bonus stat fields, server-only pending level-up state
+  - CombatSystem: `awardXP()` on kills/structure hits, `generateUpgradeChoices()` picks 2 random from 5, `applyUpgrade()` applies stat bonuses. Bots auto-pick. `bonusDamage` added to attack, `bonusDefense` reduces incoming damage (min 1), `bonusRegen` added to HP regen.
+  - MovementSystem: `bonusSpeed` applied to movement
+  - StructureSystem: `bonusDefense` applied to projectile damage
+  - GameRoom: `levelUpChoice` message handler, tick-based level-up notification
+  - ColyseusClient: `sendMessage()` method for typed messages
+  - HUDScene: Level text + XP bar (bottom-left), level-up popup with 2 upgrade buttons (hover effect, labeled with stat values)
+- **Bug fix**: GameRoom used hardcoded `30000` instead of `MINION_SPAWN_INTERVAL` constant
+
+### What was NOT done (as of Session 9)
 
 - No Colyseus schema codegen — client state listeners still use `any` types
 - No tilemaps or Tiled integration
 - No client-side prediction or interpolation tuning
 - No ability system implementation
 - No minion pathfinding improvements (still walks straight to destination)
-- No hero leveling system
-- No fog of war (bots can "see" the whole map, but so can human players)
+- No fog of war (bots can "see" the whole map, but so can human players) — **next priority**
 
 ### Patterns and conventions established
 

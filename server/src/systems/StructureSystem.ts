@@ -210,7 +210,8 @@ export function updateProjectiles(state: GameState, dt: number) {
     if (dist <= moveSpeed + 5) {
       // Arrived — apply damage and remove
       if (player && player.alive) {
-        player.hp -= proj.damage;
+        const effectiveDamage = Math.max(1, proj.damage - player.bonusDefense);
+        player.hp -= effectiveDamage;
         if (player.hp <= 0) {
           player.alive = false;
           player.deaths++;

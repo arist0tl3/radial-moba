@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.0.0] - 2026-02-14
+
+### Added
+
+- **Leveling system**: Players earn XP from kills (30 XP per minion, 100 XP per player, 5 XP per structure hit). On level-up (max level 10), players choose between 2 random stat upgrades: +15 Attack Damage, +75 Max HP, +10 Move Speed, +2 HP Regen/s, or +8 Defense. Bots auto-pick randomly.
+- **Level-up UI**: HUD shows current level and XP bar (bottom-left). Popup appears on level-up with 2 buttons showing upgrade descriptions and stat values.
+- **Floating damage numbers**: Red floating text for ally damage, white for enemies/minions, orange for objective, gray for towers. Numbers drift upward and fade over 800ms.
+- **Minimap**: 160px circular overlay (bottom-right) showing all entities — bases as team-colored squares, towers as gray dots, objective as purple dot, minions as tiny team-colored dots, players as larger dots. Click-to-move supported on the minimap.
+- **Minion death animations**: Orc-death animation plays before minions are removed, with 1-second safety timeout.
+
+### Changed
+
+- **Map scaled up**: `MAP_RADIUS` 2000 → 3500 for more room to maneuver and longer travel times.
+- **Player speed reduced**: `PLAYER_SPEED` 150 → 130 to complement the larger map.
+- **Camera zoom default**: Initial camera zoom set to 0.7x to show more of the larger map.
+- **More minions per wave**: `MINIONS_PER_WAVE` 3 → 5, `OBJECTIVE_MINIONS_PER_BASE` 2 → 3, `TOWER_MINIONS_PER_WAVE` 2 → 3.
+- **Faster minion spawns**: `MINION_SPAWN_INTERVAL` 30000ms → 20000ms.
+- **Defense stat**: Player `bonusDefense` reduces incoming damage from all sources (players, minions, structure projectiles) with a minimum of 1 damage.
+
+### Fixed
+
+- **Hardcoded minion spawn interval**: GameRoom used hardcoded `30000` instead of `MINION_SPAWN_INTERVAL` constant for timer comparison.
+
 ## [0.9.0] - 2026-02-14
 
 ### Added

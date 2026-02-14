@@ -6,7 +6,7 @@ import { Base } from '../state/Base';
 import { CentralObjective } from '../state/CentralObjective';
 import { Tower } from '../state/Tower';
 import { updateMovement } from '../systems/MovementSystem';
-import { updateCombat, checkTeamElimination } from '../systems/CombatSystem';
+import { updateCombat, checkTeamElimination, applyUpgrade, UpgradeType } from '../systems/CombatSystem';
 import { updateMinionAI, spawnMinionWave, spawnObjectiveMinionWave, spawnTowerMinionWave } from '../systems/MinionAI';
 import { updateCollisions } from '../systems/CollisionSystem';
 import { checkWinConditions } from '../systems/WinCondition';
@@ -24,6 +24,8 @@ import {
   TOWER_HP,
   TOWER_RADIUS_PERCENT,
   TOWER_MINION_SPAWN_INTERVAL,
+  MINION_SPAWN_INTERVAL,
+  XP_BASE,
 } from '../shared/constants';
 
 interface MoveInput {
@@ -73,6 +75,13 @@ export class GameRoom extends Room<GameState> {
       const queue = this.inputQueue.get(client.sessionId) ?? [];
       queue.push(input);
       this.inputQueue.set(client.sessionId, queue);
+    });
+
+    this.onMessage('levelUpChoice', (client, data: { choice: string }) => {
+      const player = this.state.players.get(client.sessionId);
+      if (!player || !player.pendingLevelUp) return;
+      if (data.choice !== player.pendingChoices[0] && data.choice !== player.pendingChoices[1]) return;
+      applyUpgrade(player, data.choice as UpgradeType);
     });
   }
 
@@ -292,7 +301,7 @@ export class GameRoom extends Room<GameState> {
 
     // 9. Spawn minions on timer
     this.minionSpawnTimer += TICK_INTERVAL;
-    if (this.minionSpawnTimer >= 30000) { // every 30 seconds
+    if (this.minionSpawnTimer >= MINION_SPAWN_INTERVAL) {
       spawnMinionWave(this.state);
       this.minionSpawnTimer = 0;
     }
@@ -329,6 +338,20 @@ export class GameRoom extends Room<GameState> {
         this.gameLoopInterval = null;
       }
     }
+
+    // 12. Notify clients of pending level-ups
+    this.state.players.forEach((player, sessionId) => {
+      if (player.pendingLevelUp && !player.pendingLevelUpNotified && !player.isBot) {
+        const client = this.clients.find(c => c.sessionId === sessionId);
+        if (client) {
+          client.send('levelUpChoices', {
+            level: player.level,
+            choices: player.pendingChoices,
+          });
+          player.pendingLevelUpNotified = true;
+        }
+      }
+    });
 
     this.state.tick++;
   }

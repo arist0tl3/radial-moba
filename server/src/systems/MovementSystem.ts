@@ -68,7 +68,7 @@ export function updateMovement(state: GameState, dt: number) {
 
         if (dist > effectiveRange) {
           // Move toward target
-          const speed = PLAYER_SPEED * dt;
+          const speed = (PLAYER_SPEED + player.bonusSpeed) * dt;
           const dx = target.x - player.x;
           const dy = target.y - player.y;
           if (dist <= speed) {
@@ -93,7 +93,7 @@ export function updateMovement(state: GameState, dt: number) {
 
     if (dist < 2) return; // Close enough
 
-    const speed = PLAYER_SPEED * dt;
+    const speed = (PLAYER_SPEED + player.bonusSpeed) * dt;
     if (dist <= speed) {
       player.x = player.targetX;
       player.y = player.targetY;

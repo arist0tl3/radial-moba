@@ -100,6 +100,23 @@ export class MinionSprite {
     }
   }
 
+  playDeathAndDestroy() {
+    this.hpBar.setVisible(false);
+    this.teamMarker.setVisible(false);
+
+    this.sprite.play('orc-death');
+    this.sprite.once('animationcomplete', () => {
+      this.destroy();
+    });
+
+    // Safety timeout in case animation doesn't complete
+    this.scene.time.delayedCall(1000, () => {
+      if (this.sprite && this.sprite.active) {
+        this.destroy();
+      }
+    });
+  }
+
   destroy() {
     this.sprite.destroy();
     this.teamMarker.destroy();

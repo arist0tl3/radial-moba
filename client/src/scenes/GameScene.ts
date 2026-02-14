@@ -35,6 +35,11 @@ export class GameScene extends Phaser.Scene {
   private projectileSprites: Map<string, ProjectileSprite> = new Map();
   private currentTargetId: string = '';
   private targetHighlight: Phaser.GameObjects.Graphics | null = null;
+  private prevHp: Map<string, number> = new Map();
+  private minimap!: Phaser.GameObjects.Graphics;
+  private minimapBg!: Phaser.GameObjects.Graphics;
+  private static readonly MINIMAP_SIZE = 160;
+  private static readonly MINIMAP_PADDING = 10;
 
   constructor() {
     super({ key: 'GameScene' });
@@ -49,6 +54,7 @@ export class GameScene extends Phaser.Scene {
     // Set camera bounds to the map
     const mapSize = MAP_RADIUS * 2;
     this.cameras.main.setBounds(0, 0, mapSize, mapSize);
+    this.cameras.main.setZoom(0.7);
 
     this.drawMap();
     this.connectToGame();
@@ -58,9 +64,32 @@ export class GameScene extends Phaser.Scene {
     this.targetHighlight = this.add.graphics();
     this.targetHighlight.setDepth(100);
 
+    this.createMinimap();
+
     // Click-to-move / click-to-attack input
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (this.gameOver) return;
+
+      // Check if click is on minimap — convert to world coords
+      const size = GameScene.MINIMAP_SIZE;
+      const pad = GameScene.MINIMAP_PADDING;
+      const mmRight = this.cameras.main.width - pad;
+      const mmLeft = mmRight - size;
+      const mmBottom = this.cameras.main.height - pad;
+      const mmTop = mmBottom - size;
+
+      if (pointer.x >= mmLeft && pointer.x <= mmRight && pointer.y >= mmTop && pointer.y <= mmBottom) {
+        const mmCx = (mmLeft + mmRight) / 2;
+        const mmCy = (mmTop + mmBottom) / 2;
+        const mapSize = MAP_RADIUS * 2;
+        const mapScale = mapSize / size;
+        const worldX = MAP_RADIUS + (pointer.x - mmCx) * mapScale;
+        const worldY = MAP_RADIUS + (pointer.y - mmCy) * mapScale;
+        this.currentTargetId = '';
+        networkClient.sendInput({ type: 'move', x: worldX, y: worldY });
+        return;
+      }
+
       const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
 
       // Hit test entities — priority: enemy players > enemy minions > objective > enemy bases
@@ -96,6 +125,110 @@ export class GameScene extends Phaser.Scene {
       const cam = this.cameras.main;
       const newZoom = Phaser.Math.Clamp(cam.zoom - dy * 0.001, 0.3, 2);
       cam.setZoom(newZoom);
+    });
+  }
+
+  private spawnDamageNumber(x: number, y: number, amount: number, color: string = '#ffffff') {
+    const text = this.add.text(x, y - 20, `-${Math.round(amount)}`, {
+      fontSize: '16px',
+      fontStyle: 'bold',
+      color,
+      stroke: '#000000',
+      strokeThickness: 3,
+    }).setDepth(50).setOrigin(0.5);
+
+    this.tweens.add({
+      targets: text,
+      y: y - 50,
+      alpha: 0,
+      duration: 800,
+      ease: 'Power1',
+      onComplete: () => text.destroy(),
+    });
+  }
+
+  private createMinimap() {
+    const size = GameScene.MINIMAP_SIZE;
+    const pad = GameScene.MINIMAP_PADDING;
+    const x = this.cameras.main.width - size - pad;
+    const y = this.cameras.main.height - size - pad;
+
+    this.minimapBg = this.add.graphics();
+    this.minimapBg.setScrollFactor(0);
+    this.minimapBg.setDepth(90);
+    this.minimapBg.fillStyle(0x111111, 0.7);
+    this.minimapBg.fillCircle(x + size / 2, y + size / 2, size / 2);
+    this.minimapBg.lineStyle(2, 0x555555, 0.8);
+    this.minimapBg.strokeCircle(x + size / 2, y + size / 2, size / 2);
+
+    this.minimap = this.add.graphics();
+    this.minimap.setScrollFactor(0);
+    this.minimap.setDepth(91);
+
+    this.scale.on('resize', () => {
+      this.minimapBg.clear();
+      const rx = this.cameras.main.width - size - pad;
+      const ry = this.cameras.main.height - size - pad;
+      this.minimapBg.fillStyle(0x111111, 0.7);
+      this.minimapBg.fillCircle(rx + size / 2, ry + size / 2, size / 2);
+      this.minimapBg.lineStyle(2, 0x555555, 0.8);
+      this.minimapBg.strokeCircle(rx + size / 2, ry + size / 2, size / 2);
+    });
+  }
+
+  private updateMinimap() {
+    const room = networkClient.gameRoom;
+    if (!room) return;
+    this.minimap.clear();
+
+    const size = GameScene.MINIMAP_SIZE;
+    const pad = GameScene.MINIMAP_PADDING;
+    const cx = this.cameras.main.width - size / 2 - pad;
+    const cy = this.cameras.main.height - size / 2 - pad;
+    const mapSize = MAP_RADIUS * 2;
+    const scale = size / mapSize;
+
+    const toMiniX = (wx: number) => cx + (wx - MAP_RADIUS) * scale;
+    const toMiniY = (wy: number) => cy + (wy - MAP_RADIUS) * scale;
+
+    // Bases
+    room.state.bases.forEach((base: any) => {
+      if (base.destroyed && base.capturedByTeam < 0) return;
+      const color = base.destroyed && base.capturedByTeam >= 0
+        ? TEAM_COLORS[base.capturedByTeam] ?? 0x888888
+        : TEAM_COLORS[base.teamIndex] ?? 0x888888;
+      this.minimap.fillStyle(color, 0.9);
+      this.minimap.fillRect(toMiniX(base.x) - 3, toMiniY(base.y) - 3, 6, 6);
+    });
+
+    // Towers
+    room.state.towers.forEach((tower: any) => {
+      if (tower.destroyed) return;
+      this.minimap.fillStyle(0x888888, 0.8);
+      this.minimap.fillCircle(toMiniX(tower.x), toMiniY(tower.y), 2);
+    });
+
+    // Objective
+    if (room.state.objective && room.state.objective.hp > 0) {
+      this.minimap.fillStyle(0xaa88ff, 0.9);
+      this.minimap.fillCircle(toMiniX(room.state.objective.x), toMiniY(room.state.objective.y), 3);
+    }
+
+    // Minions
+    room.state.minions.forEach((minion: any) => {
+      if (minion.hp <= 0) return;
+      const color = minion.teamIndex >= 0 ? (TEAM_COLORS[minion.teamIndex] ?? 0xffffff) : 0xff8800;
+      this.minimap.fillStyle(color, 0.6);
+      this.minimap.fillCircle(toMiniX(minion.x), toMiniY(minion.y), 1);
+    });
+
+    // Players
+    room.state.players.forEach((player: any, key: string) => {
+      if (!player.alive) return;
+      const color = TEAM_COLORS[player.teamIndex] ?? 0xffffff;
+      const isMe = key === room.sessionId;
+      this.minimap.fillStyle(color, 1);
+      this.minimap.fillCircle(toMiniX(player.x), toMiniY(player.y), isMe ? 3 : 2);
     });
   }
 
@@ -156,6 +289,7 @@ export class GameScene extends Phaser.Scene {
         const sprite = this.playerSprites.get(key);
         sprite?.destroy();
         this.playerSprites.delete(key);
+        this.prevHp.delete(key);
       });
 
       room.state.minions.onAdd((minion: any, key: string) => {
@@ -165,8 +299,11 @@ export class GameScene extends Phaser.Scene {
 
       room.state.minions.onRemove((_minion: any, key: string) => {
         const sprite = this.minionSprites.get(key);
-        sprite?.destroy();
+        if (sprite) {
+          sprite.playDeathAndDestroy();
+        }
         this.minionSprites.delete(key);
+        this.prevHp.delete(`m_${key}`);
       });
 
       // Projectiles
@@ -250,11 +387,29 @@ export class GameScene extends Phaser.Scene {
     room.state.players.forEach((player: any, key: string) => {
       const sprite = this.playerSprites.get(key);
       sprite?.updateFromState(player);
+
+      // Damage numbers
+      const prevPlayerHp = this.prevHp.get(key) ?? player.hp;
+      if (player.hp < prevPlayerHp && player.alive) {
+        const amount = prevPlayerHp - player.hp;
+        const isAlly = player.teamIndex === this.myTeamIndex;
+        this.spawnDamageNumber(player.x, player.y, amount, isAlly ? '#ff4444' : '#ffffff');
+      }
+      this.prevHp.set(key, player.hp);
     });
 
     room.state.minions.forEach((minion: any, key: string) => {
       const sprite = this.minionSprites.get(key);
       sprite?.updateFromState(minion);
+
+      // Damage numbers
+      const minionKey = `m_${key}`;
+      const prevMinionHp = this.prevHp.get(minionKey) ?? minion.hp;
+      if (minion.hp < prevMinionHp) {
+        const amount = prevMinionHp - minion.hp;
+        this.spawnDamageNumber(minion.x, minion.y, amount, '#ffffff');
+      }
+      this.prevHp.set(minionKey, minion.hp);
     });
 
     room.state.projectiles.forEach((projectile: any, key: string) => {
@@ -264,6 +419,14 @@ export class GameScene extends Phaser.Scene {
 
     if (this.objectiveSprite && room.state.objective) {
       this.objectiveSprite.updateFromState(room.state.objective);
+
+      // Damage numbers
+      const prevObjHp = this.prevHp.get('objective') ?? room.state.objective.hp;
+      if (room.state.objective.hp < prevObjHp) {
+        const amount = prevObjHp - room.state.objective.hp;
+        this.spawnDamageNumber(room.state.objective.x, room.state.objective.y, amount, '#ffaa44');
+      }
+      this.prevHp.set('objective', room.state.objective.hp);
     }
 
     // Draw target highlight ring
@@ -273,6 +436,15 @@ export class GameScene extends Phaser.Scene {
     room.state.bases.forEach((base: any, key: string) => {
       const baseSprite = this.baseSprites.get(key);
       const hpBar = this.baseHpBars.get(key);
+
+      // Damage numbers
+      const baseHpKey = `b_${key}`;
+      const prevBaseHp = this.prevHp.get(baseHpKey) ?? base.hp;
+      if (base.hp < prevBaseHp && !base.destroyed) {
+        const amount = prevBaseHp - base.hp;
+        this.spawnDamageNumber(base.x, base.y, amount, '#ffffff');
+      }
+      this.prevHp.set(baseHpKey, base.hp);
 
       // HP bar
       if (hpBar) {
@@ -318,6 +490,15 @@ export class GameScene extends Phaser.Scene {
       const hpBar = this.towerHpBars.get(key);
       if (!gfx) return;
 
+      // Damage numbers
+      const towerHpKey = `t_${key}`;
+      const prevTowerHp = this.prevHp.get(towerHpKey) ?? tower.hp;
+      if (tower.hp < prevTowerHp && !tower.destroyed) {
+        const amount = prevTowerHp - tower.hp;
+        this.spawnDamageNumber(tower.x, tower.y, amount, '#aaaaaa');
+      }
+      this.prevHp.set(towerHpKey, tower.hp);
+
       gfx.clear();
       if (!tower.destroyed) {
         // Tower body: neutral gray structure
@@ -353,6 +534,9 @@ export class GameScene extends Phaser.Scene {
         }
       }
     });
+
+    // Minimap
+    this.updateMinimap();
   }
 
   /**
