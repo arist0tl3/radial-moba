@@ -56,6 +56,9 @@
 - [x] HP regeneration: baseline 2 HP/sec, boosted 10 HP/sec near own base
 - [x] Defensive structures: bases and objective fire projectiles at attackers
 - [x] Objective spawns minions that push toward bases
+- [x] Neutral lane towers: 4 aggressive towers (1 per lane) at 50% radius, attack all teams, spawn hostile minions outward
+- [x] Bot lane progression: bots clear own lane tower before pushing to bases/objective
+- [x] Team minions aggro towers while walking to center
 - [ ] Hero level-up system (XP from kills, stat scaling)
 
 ## Phase 7 — Hero Ability & Combat Feel

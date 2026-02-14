@@ -80,7 +80,17 @@ This file describes the AI agents that have contributed to this project and thei
 - **Base defense priority**: Bots detect enemies (players or minions) near their own base (within 400px) and prioritize defending it, interrupting whatever they were doing.
 - **Decision cooldown**: Bots re-evaluate targets every 2 seconds instead of every tick, preventing erratic target-switching. Urgent interrupts (low HP, base under attack, target dies) trigger immediate re-evaluation.
 
-### What was NOT done (as of Session 7)
+### Session 8 — Neutral Lane Towers (2026-02-14)
+
+- **Neutral aggressive towers**: Added 4 neutral lane towers (1 per lane) positioned at 50% of MAP_RADIUS from center along each team's lane angle. Towers are neutral (teamIndex -1) — they attack any team's units within range.
+- **Tower minion spawning**: Each tower spawns 2 neutral minions every 40 seconds that walk outward toward the base in that lane. Minions behave identically to objective minions (teamIndex -1, hostile to all).
+- **Tower combat**: Towers fire projectiles using the existing StructureSystem pattern — prioritize minions over players, same projectile visuals. Towers take damage from players and minions, and stay permanently destroyed.
+- **Bot AI lane progression**: Bots now follow a natural lane progression: enemy players > enemy minions > own lane tower > enemy bases > objective. Bots use existing minion-escort logic when approaching towers.
+- **Team minion tower aggro**: Team minions now aggro on neutral towers as they walk toward center, creating organic lane fights.
+- **Client rendering**: Towers rendered as gray circles with inner core detail, HP bars, destroyed rubble state. Click-to-attack works on towers. Subtle gray dots on map background show tower positions.
+- **12 files modified**: constants.ts, Tower.ts, GameState.ts, GameRoom.ts, StructureSystem.ts, CombatSystem.ts, MovementSystem.ts, MinionAI.ts, CollisionSystem.ts, BotAI.ts, GameScene.ts, synced client constants.
+
+### What was NOT done (as of Session 8)
 
 - No Colyseus schema codegen — client state listeners still use `any` types
 - No tilemaps or Tiled integration
@@ -94,7 +104,7 @@ This file describes the AI agents that have contributed to this project and thei
 
 - Server-authoritative model: clients send inputs, server validates and broadcasts state
 - Fixed timestep game loop at 20 ticks/second
-- Systems architecture: MovementSystem, CombatSystem, MinionAI, CollisionSystem, BotAI, StructureSystem, WinCondition as pure functions operating on GameState
+- Systems architecture: MovementSystem, CombatSystem, MinionAI, CollisionSystem, BotAI, StructureSystem, WinCondition as pure functions operating on GameState. CombatTarget discriminated union pattern for entity resolution.
 - Client sprites wrap Phaser game objects and update via `updateFromState()` from Colyseus state listeners
 - Shared constants live in `server/src/shared/` and sync to `client/src/shared/` via `sync.sh`
 - Reconnection uses `sessionStorage` for browser-refresh survival and in-memory tokens for network-drop recovery

@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.9.0] - 2026-02-14
+
+### Added
+
+- **Neutral lane towers**: 4 neutral aggressive towers (1 per lane) positioned at 50% radius from center along each team's lane angle. Towers are neutral (teamIndex -1) — they attack any team's units within range using the existing projectile system.
+- **Tower minion waves**: Each tower spawns 2 neutral minions every 40 seconds that walk outward toward the base in that lane. Creates constant PvE lane pressure that must be dealt with before pushing to center.
+- **Tower destruction**: Towers take damage from players and minions, stay permanently destroyed. Destroying a tower removes minion pressure AND clears the path to the central objective.
+- **Bot lane progression**: Bots now follow natural lane progression — clear own lane tower before pushing to enemy bases or the objective. Uses existing minion-escort safety logic.
+- **Team minion tower aggro**: Team minions aggro on neutral towers as they pass through lanes, creating organic fights around tower positions.
+- **Tower client visuals**: Gray circle towers with inner core detail, HP bars, destroyed rubble state. Click-to-attack targeting, pulsing highlight ring, and subtle map position indicators.
+
+### Changed
+
+- **CombatTarget union extended**: Added `{ kind: 'tower'; towerKey: string }` variant for tower entity resolution across combat, movement, and AI systems.
+
 ## [0.8.0] - 2026-02-13
 
 ### Added
