@@ -51,6 +51,10 @@ export const PLAYERS_PER_TEAM = 1;
 export const TEAM_COLORS = [0xff4444, 0x4444ff, 0x44ff44, 0xffff44] as const;
 export const TEAM_COLOR_STRINGS = ['#ff4444', '#4444ff', '#44ff44', '#ffff44'] as const;
 
+// Objective minions
+export const OBJECTIVE_MINION_SPAWN_INTERVAL = 45000; // ms — slightly slower than team minions
+export const OBJECTIVE_MINIONS_PER_BASE = 2; // spawned per active base each wave
+
 // Projectiles
 export const PROJECTILE_SPEED = 400; // pixels per second
 

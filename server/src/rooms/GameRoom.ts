@@ -6,7 +6,7 @@ import { Base } from '../state/Base';
 import { CentralObjective } from '../state/CentralObjective';
 import { updateMovement } from '../systems/MovementSystem';
 import { updateCombat, checkTeamElimination } from '../systems/CombatSystem';
-import { updateMinionAI, spawnMinionWave } from '../systems/MinionAI';
+import { updateMinionAI, spawnMinionWave, spawnObjectiveMinionWave } from '../systems/MinionAI';
 import { updateCollisions } from '../systems/CollisionSystem';
 import { checkWinConditions } from '../systems/WinCondition';
 import { updateBotAI } from '../systems/BotAI';
@@ -19,6 +19,7 @@ import {
   MAP_RADIUS,
   OBJECTIVE_HP,
   BASE_HP,
+  OBJECTIVE_MINION_SPAWN_INTERVAL,
 } from '../shared/constants';
 
 interface MoveInput {
@@ -47,6 +48,7 @@ type PlayerInput = MoveInput | AbilityInput | AttackInput | StopInput;
 export class GameRoom extends Room<GameState> {
   private gameLoopInterval: ReturnType<typeof setInterval> | null = null;
   private minionSpawnTimer: number = 0;
+  private objectiveMinionTimer: number = 0;
   private inputQueue: Map<string, PlayerInput[]> = new Map();
   private expectedPlayers: number = 0;
   private teamAssignments: Record<string, number> = {};
@@ -275,7 +277,14 @@ export class GameRoom extends Room<GameState> {
       this.minionSpawnTimer = 0;
     }
 
-    // 10. Check win conditions
+    // 10. Spawn objective minions on timer
+    this.objectiveMinionTimer += TICK_INTERVAL;
+    if (this.objectiveMinionTimer >= OBJECTIVE_MINION_SPAWN_INTERVAL) {
+      spawnObjectiveMinionWave(this.state);
+      this.objectiveMinionTimer = 0;
+    }
+
+    // 11. Check win conditions
     const winner = checkWinConditions(this.state);
     if (winner !== null) {
       this.state.phase = 'finished';

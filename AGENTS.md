@@ -66,14 +66,19 @@ This file describes the AI agents that have contributed to this project and thei
 - **Constants**: `BASE_ATTACK_DAMAGE=40`, `BASE_ATTACK_RANGE=200`, `BASE_ATTACK_COOLDOWN=1500ms`, `OBJECTIVE_ATTACK_DAMAGE=50`, `OBJECTIVE_ATTACK_RANGE=250`, `OBJECTIVE_ATTACK_COOLDOWN=1000ms`, `PROJECTILE_SPEED=400`.
 - Captured bases fire for the capturing team. Objective fires at all teams.
 
+### Session 6 continued — Objective Minion Waves (2026-02-13)
+
+- **Objective minion spawning**: Central objective spawns neutral minions (teamIndex -1) every 45 seconds. Each wave sends 2 minions per active base. Minions walk outward from center toward their target base, aggro on nearby enemies, and attack bases on arrival.
+- Updated `walkTowardCenter` to support outward-bound pathing for neutral minions.
+- Neutral minions skip objective aggro (they belong to it) but aggro on all team bases.
+
 ### What was NOT done (as of Session 6)
 
 - No Colyseus schema codegen — client state listeners still use `any` types
 - No tilemaps or Tiled integration
 - No client-side prediction or interpolation tuning
 - No ability system implementation
-- No minion pathfinding improvements (still walks straight to center)
-- No objective minion spawning (objective doesn't push toward bases)
+- No minion pathfinding improvements (still walks straight to destination)
 - No hero leveling system
 
 ### Patterns and conventions established

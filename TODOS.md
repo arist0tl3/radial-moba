@@ -54,7 +54,7 @@
 - [x] Bot AI: target selection (players > minions > bases > objective)
 - [ ] Smarter bot AI: objective-based decision making (wait for minions, retreat when low HP)
 - [x] Defensive structures: bases and objective fire projectiles at attackers
-- [ ] Objective spawns minions that push toward bases
+- [x] Objective spawns minions that push toward bases
 - [ ] Hero level-up system (XP from kills, stat scaling)
 
 ## Phase 7 — Hero Ability & Combat Feel

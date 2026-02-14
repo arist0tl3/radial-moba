@@ -8,6 +8,7 @@ import {
   MINIONS_PER_WAVE,
   MAP_RADIUS,
   NUM_TEAMS,
+  OBJECTIVE_MINIONS_PER_BASE,
 } from '../shared/constants';
 
 let minionIdCounter = 0;
@@ -51,6 +52,34 @@ export function spawnMinionWave(state: GameState) {
   });
 }
 
+/**
+ * Spawn neutral minions from the objective heading toward each active base.
+ */
+export function spawnObjectiveMinionWave(state: GameState) {
+  if (state.objective.hp <= 0) return;
+
+  const cx = state.objective.x;
+  const cy = state.objective.y;
+
+  state.bases.forEach((base) => {
+    if (base.destroyed) return;
+
+    for (let i = 0; i < OBJECTIVE_MINIONS_PER_BASE; i++) {
+      const minion = new Minion();
+      minion.id = `minion_${minionIdCounter++}`;
+      minion.teamIndex = -1; // Neutral — hostile to all teams
+      // Spawn near center with slight offset
+      minion.x = cx + (i - 0.5) * 15;
+      minion.y = cy + (i - 0.5) * 15;
+      minion.hp = MINION_HP;
+      minion.maxHp = MINION_HP;
+      minion.state = 'walking';
+      minion.targetId = `base_${base.teamIndex}`; // Walk toward this base
+      state.minions.set(minion.id, minion);
+    }
+  });
+}
+
 export function updateMinionAI(state: GameState, dt: number) {
   state.minions.forEach((minion) => {
     switch (minion.state) {
@@ -75,20 +104,32 @@ export function updateMinionAI(state: GameState, dt: number) {
 }
 
 function walkTowardCenter(state: GameState, minion: Minion, dt: number) {
-  // Simple: walk straight toward the center of the map
-  const centerX = MAP_RADIUS;
-  const centerY = MAP_RADIUS;
+  let goalX = MAP_RADIUS;
+  let goalY = MAP_RADIUS;
 
-  const dx = centerX - minion.x;
-  const dy = centerY - minion.y;
+  // Objective minions (teamIndex -1) walk toward their assigned base instead of center
+  if (minion.teamIndex === -1 && minion.targetId.startsWith('base_')) {
+    const pos = getTargetPosition(state, minion.targetId);
+    if (pos) {
+      goalX = pos.x;
+      goalY = pos.y;
+    } else {
+      // Base destroyed — clear target, switch to aggro scan
+      minion.targetId = '';
+      return;
+    }
+  }
+
+  const dx = goalX - minion.x;
+  const dy = goalY - minion.y;
   const dist = Math.sqrt(dx * dx + dy * dy);
 
-  if (dist < 5) return; // At center
+  if (dist < 5) return; // At destination
 
   const speed = MINION_SPEED * dt;
   if (dist <= speed) {
-    minion.x = centerX;
-    minion.y = centerY;
+    minion.x = goalX;
+    minion.y = goalY;
   } else {
     minion.x += (dx / dist) * speed;
     minion.y += (dy / dist) * speed;
@@ -120,13 +161,25 @@ function checkForAggroTargets(state: GameState, minion: Minion) {
     });
   }
 
-  // If close to the objective, attack it
-  if (!nearestId) {
+  // If close to the objective, attack it (team minions only, not objective's own minions)
+  if (!nearestId && minion.teamIndex >= 0) {
     const objDist = distance(minion.x, minion.y, state.objective.x, state.objective.y);
     if (objDist < MINION_AGGRO_RANGE) {
       nearestId = 'objective';
       nearestDist = objDist;
     }
+  }
+
+  // Objective minions: attack nearby enemy bases
+  if (!nearestId && minion.teamIndex === -1) {
+    state.bases.forEach((base) => {
+      if (base.destroyed) return;
+      const dist = distance(minion.x, minion.y, base.x, base.y);
+      if (dist < MINION_AGGRO_RANGE && dist < nearestDist) {
+        nearestDist = dist;
+        nearestId = `base_${base.teamIndex}`;
+      }
+    });
   }
 
   if (nearestId) {

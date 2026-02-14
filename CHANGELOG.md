@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.7.0] - 2026-02-13
+
+### Added
+
+- **Objective minion waves**: The central objective spawns neutral minions (teamIndex -1) every 45 seconds. Each wave sends 2 minions toward each active base. Neutral minions are hostile to all teams, aggro on nearby players/minions, and attack bases on arrival. Creates PvE pressure that forces teams to defend.
+
 ## [0.6.0] - 2026-02-13
 
 ### Added
