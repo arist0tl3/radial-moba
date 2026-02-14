@@ -3,6 +3,7 @@ import { networkClient } from '../network/ColyseusClient';
 import { PlayerSprite } from '../entities/PlayerSprite';
 import { MinionSprite } from '../entities/MinionSprite';
 import { ObjectiveSprite } from '../entities/ObjectiveSprite';
+import { ProjectileSprite } from '../entities/ProjectileSprite';
 import {
   MAP_RADIUS,
   TEAM_COLORS,
@@ -28,6 +29,7 @@ export class GameScene extends Phaser.Scene {
   private mapBackground!: Phaser.GameObjects.Graphics;
   private disconnectOverlay: Phaser.GameObjects.Container | null = null;
   private gameOver: boolean = false;
+  private projectileSprites: Map<string, ProjectileSprite> = new Map();
   private currentTargetId: string = '';
   private targetHighlight: Phaser.GameObjects.Graphics | null = null;
 
@@ -154,6 +156,18 @@ export class GameScene extends Phaser.Scene {
         this.minionSprites.delete(key);
       });
 
+      // Projectiles
+      room.state.projectiles.onAdd((projectile: any, key: string) => {
+        const sprite = new ProjectileSprite(this, projectile);
+        this.projectileSprites.set(key, sprite);
+      });
+
+      room.state.projectiles.onRemove((_projectile: any, key: string) => {
+        const sprite = this.projectileSprites.get(key);
+        sprite?.destroy();
+        this.projectileSprites.delete(key);
+      });
+
       // Central objective — create sprite immediately from initial state
       if (room.state.objective) {
         this.objectiveSprite = new ObjectiveSprite(this, room.state.objective);
@@ -207,6 +221,11 @@ export class GameScene extends Phaser.Scene {
     room.state.minions.forEach((minion: any, key: string) => {
       const sprite = this.minionSprites.get(key);
       sprite?.updateFromState(minion);
+    });
+
+    room.state.projectiles.forEach((projectile: any, key: string) => {
+      const sprite = this.projectileSprites.get(key);
+      sprite?.updateFromState(projectile);
     });
 
     if (this.objectiveSprite && room.state.objective) {

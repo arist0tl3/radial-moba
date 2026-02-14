@@ -12,10 +12,16 @@ export const NUM_TEAMS = 4; // Hardcoded for MVP
 // Central objective
 export const OBJECTIVE_HP = 10000;
 export const OBJECTIVE_RADIUS = 64;
+export const OBJECTIVE_ATTACK_DAMAGE = 50;
+export const OBJECTIVE_ATTACK_RANGE = 250;
+export const OBJECTIVE_ATTACK_COOLDOWN = 1000; // ms
 
 // Team bases
 export const BASE_HP = 3000;
 export const BASE_RADIUS = 48;
+export const BASE_ATTACK_DAMAGE = 40;
+export const BASE_ATTACK_RANGE = 200;
+export const BASE_ATTACK_COOLDOWN = 1500; // ms
 
 // Player
 export const PLAYER_HP = 500;
@@ -44,6 +50,9 @@ export const MINION_COLLISION_RADIUS = 8;
 export const PLAYERS_PER_TEAM = 1;
 export const TEAM_COLORS = [0xff4444, 0x4444ff, 0x44ff44, 0xffff44] as const;
 export const TEAM_COLOR_STRINGS = ['#ff4444', '#4444ff', '#44ff44', '#ffff44'] as const;
+
+// Projectiles
+export const PROJECTILE_SPEED = 400; // pixels per second
 
 // Bots
 export const BOT_SCAN_RANGE = 500; // How far bots look for targets

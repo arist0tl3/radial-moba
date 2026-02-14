@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.0] - 2026-02-13
+
+### Added
+
+- **Defensive structure projectiles**: Bases and the central objective now fire traveling projectiles at nearby enemies. Structures prioritize minions over players (classic MOBA tower aggro). Captured bases fire for the capturing team. The objective fires at all teams.
+- **Projectile schema + visuals**: New `Projectile` state schema synced to clients. Rendered as glowing team-colored orbs that travel from structure to target. Damage applied on arrival.
+- **StructureSystem**: New server system with `updateStructureAttacks()` (targeting + cooldown) and `updateProjectiles()` (movement + damage on hit).
+
 ## [0.5.0] - 2026-02-13
 
 ### Added

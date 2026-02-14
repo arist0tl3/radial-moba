@@ -10,6 +10,7 @@ import { updateMinionAI, spawnMinionWave } from '../systems/MinionAI';
 import { updateCollisions } from '../systems/CollisionSystem';
 import { checkWinConditions } from '../systems/WinCondition';
 import { updateBotAI } from '../systems/BotAI';
+import { updateStructureAttacks, updateProjectiles } from '../systems/StructureSystem';
 import {
   TICK_INTERVAL,
   NUM_TEAMS,
@@ -255,20 +256,26 @@ export class GameRoom extends Room<GameState> {
     // 4. Resolve collisions
     updateCollisions(this.state);
 
-    // 5. Resolve combat
+    // 5. Structure attacks (bases + objective fire projectiles)
+    updateStructureAttacks(this.state, dt);
+
+    // 6. Move projectiles, apply damage on arrival
+    updateProjectiles(this.state, dt);
+
+    // 7. Resolve combat
     updateCombat(this.state, dt);
 
-    // 6. Check team elimination (base destroyed + all players dead)
+    // 8. Check team elimination (base destroyed + all players dead)
     checkTeamElimination(this.state);
 
-    // 7. Spawn minions on timer
+    // 9. Spawn minions on timer
     this.minionSpawnTimer += TICK_INTERVAL;
     if (this.minionSpawnTimer >= 30000) { // every 30 seconds
       spawnMinionWave(this.state);
       this.minionSpawnTimer = 0;
     }
 
-    // 8. Check win conditions
+    // 10. Check win conditions
     const winner = checkWinConditions(this.state);
     if (winner !== null) {
       this.state.phase = 'finished';

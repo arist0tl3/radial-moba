@@ -59,14 +59,21 @@ This file describes the AI agents that have contributed to this project and thei
 - **AI bot players**: Server-side bots fill empty teams on game start. BotAI system runs each tick — finds nearest enemy (players > minions > bases > objective), sets `attackTargetId`, lets existing Movement/Combat systems handle the rest. Lobby allows solo start with bots filling remaining teams.
 - **Teams reduced to 1 player each** for MVP testing with bots.
 
-### What was NOT done (as of Session 5)
+### Session 6 — Defensive Structure Projectiles (2026-02-13)
+
+- **Structure attacks**: Bases and the central objective now fire traveling projectiles at enemies within range. Classic MOBA tower aggro — structures prioritize minions over players.
+- **Projectile system**: Created `Projectile` schema (id, position, target, damage, speed, team), `StructureSystem.ts` with targeting + projectile movement/damage, `ProjectileSprite.ts` for client-side glowing orb visuals.
+- **Constants**: `BASE_ATTACK_DAMAGE=40`, `BASE_ATTACK_RANGE=200`, `BASE_ATTACK_COOLDOWN=1500ms`, `OBJECTIVE_ATTACK_DAMAGE=50`, `OBJECTIVE_ATTACK_RANGE=250`, `OBJECTIVE_ATTACK_COOLDOWN=1000ms`, `PROJECTILE_SPEED=400`.
+- Captured bases fire for the capturing team. Objective fires at all teams.
+
+### What was NOT done (as of Session 6)
 
 - No Colyseus schema codegen — client state listeners still use `any` types
 - No tilemaps or Tiled integration
 - No client-side prediction or interpolation tuning
 - No ability system implementation
 - No minion pathfinding improvements (still walks straight to center)
-- No defensive structure attacks (bases/objective don't fight back)
+- No objective minion spawning (objective doesn't push toward bases)
 - No hero leveling system
 
 ### Patterns and conventions established
