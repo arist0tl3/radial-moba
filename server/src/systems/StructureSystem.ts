@@ -64,13 +64,14 @@ function findStructureTarget(
   return nearestId;
 }
 
-function spawnProjectile(
+export function spawnProjectile(
   state: GameState,
   fromX: number,
   fromY: number,
   targetId: string,
   damage: number,
-  sourceTeamIndex: number
+  sourceTeamIndex: number,
+  speed: number = PROJECTILE_SPEED
 ) {
   const proj = new Projectile();
   proj.id = `proj_${projectileIdCounter++}`;
@@ -80,7 +81,7 @@ function spawnProjectile(
   proj.y = fromY;
   proj.targetId = targetId;
   proj.damage = damage;
-  proj.speed = PROJECTILE_SPEED;
+  proj.speed = speed;
   proj.sourceTeamIndex = sourceTeamIndex;
   state.projectiles.set(proj.id, proj);
 }

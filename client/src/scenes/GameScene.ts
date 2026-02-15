@@ -54,7 +54,7 @@ export class GameScene extends Phaser.Scene {
     // Set camera bounds to the map
     const mapSize = MAP_RADIUS * 2;
     this.cameras.main.setBounds(0, 0, mapSize, mapSize);
-    this.cameras.main.setZoom(0.7);
+    this.cameras.main.setZoom(0.8);
 
     this.drawMap();
     this.connectToGame();
@@ -123,7 +123,7 @@ export class GameScene extends Phaser.Scene {
     // Scroll wheel to zoom camera
     this.input.on('wheel', (_pointer: Phaser.Input.Pointer, _gos: any[], _dx: number, dy: number) => {
       const cam = this.cameras.main;
-      const newZoom = Phaser.Math.Clamp(cam.zoom - dy * 0.001, 0.3, 2);
+      const newZoom = Phaser.Math.Clamp(cam.zoom - dy * 0.001, 0.5, 1.5);
       cam.setZoom(newZoom);
     });
   }
@@ -198,20 +198,20 @@ export class GameScene extends Phaser.Scene {
         ? TEAM_COLORS[base.capturedByTeam] ?? 0x888888
         : TEAM_COLORS[base.teamIndex] ?? 0x888888;
       this.minimap.fillStyle(color, 0.9);
-      this.minimap.fillRect(toMiniX(base.x) - 3, toMiniY(base.y) - 3, 6, 6);
+      this.minimap.fillRect(toMiniX(base.x) - 4, toMiniY(base.y) - 4, 8, 8);
     });
 
     // Towers
     room.state.towers.forEach((tower: any) => {
       if (tower.destroyed) return;
       this.minimap.fillStyle(0x888888, 0.8);
-      this.minimap.fillCircle(toMiniX(tower.x), toMiniY(tower.y), 2);
+      this.minimap.fillCircle(toMiniX(tower.x), toMiniY(tower.y), 3);
     });
 
     // Objective
     if (room.state.objective && room.state.objective.hp > 0) {
       this.minimap.fillStyle(0xaa88ff, 0.9);
-      this.minimap.fillCircle(toMiniX(room.state.objective.x), toMiniY(room.state.objective.y), 3);
+      this.minimap.fillCircle(toMiniX(room.state.objective.x), toMiniY(room.state.objective.y), 5);
     }
 
     // Minions
@@ -219,7 +219,7 @@ export class GameScene extends Phaser.Scene {
       if (minion.hp <= 0) return;
       const color = minion.teamIndex >= 0 ? (TEAM_COLORS[minion.teamIndex] ?? 0xffffff) : 0xff8800;
       this.minimap.fillStyle(color, 0.6);
-      this.minimap.fillCircle(toMiniX(minion.x), toMiniY(minion.y), 1);
+      this.minimap.fillCircle(toMiniX(minion.x), toMiniY(minion.y), 2);
     });
 
     // Players
@@ -228,7 +228,7 @@ export class GameScene extends Phaser.Scene {
       const color = TEAM_COLORS[player.teamIndex] ?? 0xffffff;
       const isMe = key === room.sessionId;
       this.minimap.fillStyle(color, 1);
-      this.minimap.fillCircle(toMiniX(player.x), toMiniY(player.y), isMe ? 3 : 2);
+      this.minimap.fillCircle(toMiniX(player.x), toMiniY(player.y), isMe ? 4 : 3);
     });
   }
 
@@ -257,7 +257,7 @@ export class GameScene extends Phaser.Scene {
 
     // Center zone indicator
     g.lineStyle(2, 0x888888, 0.3);
-    g.strokeCircle(cx, cy, 100);
+    g.strokeCircle(cx, cy, 175);
 
     // Tower position indicators (subtle dots at 50% radius on each lane)
     g.fillStyle(0x666666, 0.3);
@@ -266,7 +266,7 @@ export class GameScene extends Phaser.Scene {
       const towerDist = MAP_RADIUS * 0.50;
       const ttx = cx + Math.cos(angle) * towerDist;
       const tty = cy + Math.sin(angle) * towerDist;
-      g.fillCircle(ttx, tty, 6);
+      g.fillCircle(ttx, tty, 10);
     }
   }
 
@@ -328,7 +328,7 @@ export class GameScene extends Phaser.Scene {
         const color = TEAM_COLORS[base.teamIndex] ?? 0x888888;
         const baseSprite = this.add.sprite(base.x, base.y, 'statue');
         baseSprite.setTint(color);
-        baseSprite.setScale(2.5);
+        baseSprite.setScale(4.0);
         baseSprite.setDepth(3);
         this.baseSprites.set(key, baseSprite);
 
@@ -450,10 +450,10 @@ export class GameScene extends Phaser.Scene {
       if (hpBar) {
         hpBar.clear();
         if (!base.destroyed) {
-          const barWidth = 50;
+          const barWidth = 80;
           const barHeight = 5;
           const bx = base.x - barWidth / 2;
-          const by = base.y - 40;
+          const by = base.y - 70;
           const hpPct = Math.max(0, base.hp / base.maxHp);
 
           // Background
@@ -519,10 +519,10 @@ export class GameScene extends Phaser.Scene {
       if (hpBar) {
         hpBar.clear();
         if (!tower.destroyed) {
-          const barWidth = 40;
+          const barWidth = 65;
           const barHeight = 4;
           const bx = tower.x - barWidth / 2;
-          const by = tower.y - TOWER_RADIUS - 12;
+          const by = tower.y - TOWER_RADIUS - 18;
           const hpPct = Math.max(0, tower.hp / tower.maxHp);
 
           hpBar.fillStyle(0x333333, 0.8);
@@ -550,8 +550,8 @@ export class GameScene extends Phaser.Scene {
     const distSq = (ax: number, ay: number, bx: number, by: number) =>
       (ax - bx) ** 2 + (ay - by) ** 2;
 
-    // 1. Enemy players (hit radius ~20px)
-    const PLAYER_HIT_RADIUS = 20;
+    // 1. Enemy players (hit radius ~35px)
+    const PLAYER_HIT_RADIUS = 35;
     let closestId = '';
     let closestDist = Infinity;
 
@@ -565,8 +565,8 @@ export class GameScene extends Phaser.Scene {
     });
     if (closestId) return closestId;
 
-    // 2. Enemy minions (hit radius ~16px)
-    const MINION_HIT_RADIUS = 16;
+    // 2. Enemy minions (hit radius ~28px)
+    const MINION_HIT_RADIUS = 28;
     closestDist = Infinity;
 
     room.state.minions.forEach((minion: any, key: string) => {
@@ -580,7 +580,7 @@ export class GameScene extends Phaser.Scene {
     if (closestId) return closestId;
 
     // 2.5. Towers (neutral — always attackable)
-    const TOWER_HIT_RADIUS = TOWER_RADIUS + 10;
+    const TOWER_HIT_RADIUS = TOWER_RADIUS + 16;
     closestDist = Infinity;
 
     room.state.towers.forEach((tower: any, key: string) => {
@@ -596,7 +596,7 @@ export class GameScene extends Phaser.Scene {
     // 3. Central objective
     if (room.state.objective && room.state.objective.hp > 0) {
       const d = Math.sqrt(distSq(wx, wy, room.state.objective.x, room.state.objective.y));
-      if (d <= OBJECTIVE_RADIUS + 10) {
+      if (d <= OBJECTIVE_RADIUS + 16) {
         return 'objective';
       }
     }
@@ -605,7 +605,7 @@ export class GameScene extends Phaser.Scene {
     room.state.bases.forEach((base: any, key: string) => {
       if (base.teamIndex === this.myTeamIndex || base.destroyed) return;
       const d = Math.sqrt(distSq(wx, wy, base.x, base.y));
-      if (d <= BASE_RADIUS + 10 && d < closestDist) {
+      if (d <= BASE_RADIUS + 16 && d < closestDist) {
         closestDist = d;
         closestId = `base_${base.teamIndex}`;
       }
@@ -661,14 +661,14 @@ export class GameScene extends Phaser.Scene {
       if (player && player.alive) {
         tx = player.x;
         ty = player.y;
-        radius = 18;
+        radius = 32;
         found = true;
       } else {
         const minion = room.state.minions.get(this.currentTargetId);
         if (minion && minion.hp > 0) {
           tx = minion.x;
           ty = minion.y;
-          radius = 14;
+          radius = 24;
           found = true;
         }
       }

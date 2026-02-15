@@ -25,6 +25,7 @@ import {
   TOWER_RADIUS_PERCENT,
   TOWER_MINION_SPAWN_INTERVAL,
   MINION_SPAWN_INTERVAL,
+  PLAYERS_PER_TEAM,
   XP_BASE,
 } from '../shared/constants';
 
@@ -87,6 +88,13 @@ export class GameRoom extends Room<GameState> {
 
   onJoin(client: Client, options: { teamIndex?: number }) {
     const teamIndex = options.teamIndex ?? this.assignTeam();
+
+    // Count existing members on this team to determine slot index
+    let slotIndex = 0;
+    this.state.players.forEach((p) => {
+      if (p.teamIndex === teamIndex) slotIndex++;
+    });
+
     const player = new Player();
     player.id = client.sessionId;
     player.sessionId = client.sessionId;
@@ -94,8 +102,8 @@ export class GameRoom extends Room<GameState> {
     player.hp = PLAYER_HP;
     player.maxHp = PLAYER_HP;
 
-    // Spawn at team's base position
-    const spawn = this.getTeamSpawnPosition(teamIndex);
+    // Spawn at team's base position with slot offset
+    const spawn = this.getTeamSpawnPosition(teamIndex, slotIndex);
     player.x = spawn.x;
     player.y = spawn.y;
     player.targetX = spawn.x;
@@ -196,9 +204,17 @@ export class GameRoom extends Room<GameState> {
     }
   }
 
-  private getTeamSpawnPosition(teamIndex: number): { x: number; y: number } {
-    const angle = (teamIndex / NUM_TEAMS) * Math.PI * 2 - Math.PI / 2;
+  private getTeamSpawnPosition(teamIndex: number, slotIndex: number = 0): { x: number; y: number } {
+    const baseAngle = (teamIndex / NUM_TEAMS) * Math.PI * 2 - Math.PI / 2;
     const spawnRadius = MAP_RADIUS * 0.75;
+
+    // Spread multiple slots in an arc (±0.08 radians)
+    const arcSpread = 0.08;
+    const slotOffset = PLAYERS_PER_TEAM > 1
+      ? (slotIndex - (PLAYERS_PER_TEAM - 1) / 2) * (arcSpread * 2 / (PLAYERS_PER_TEAM - 1))
+      : 0;
+    const angle = baseAngle + slotOffset;
+
     return {
       x: MAP_RADIUS + Math.cos(angle) * spawnRadius,
       y: MAP_RADIUS + Math.sin(angle) * spawnRadius,
@@ -230,39 +246,38 @@ export class GameRoom extends Room<GameState> {
   }
 
   private createBots() {
-    // Find which teams already have human players
-    const teamsWithHumans = new Set<number>();
+    // Count existing players per team
+    const teamCounts = new Array(NUM_TEAMS).fill(0);
     this.state.players.forEach((player) => {
-      if (!player.isBot) {
-        teamsWithHumans.add(player.teamIndex);
-      }
+      if (player.teamIndex >= 0) teamCounts[player.teamIndex]++;
     });
 
-    // Create a bot for each empty team
+    // Fill each team to PLAYERS_PER_TEAM with bots
     for (let i = 0; i < NUM_TEAMS; i++) {
-      if (teamsWithHumans.has(i)) continue;
+      const existing = teamCounts[i];
+      for (let slot = existing; slot < PLAYERS_PER_TEAM; slot++) {
+        const botId = `bot_${i}_${slot}`;
+        const player = new Player();
+        player.id = botId;
+        player.sessionId = botId;
+        player.teamIndex = i;
+        player.hp = PLAYER_HP;
+        player.maxHp = PLAYER_HP;
+        player.isBot = true;
 
-      const botId = `bot_${i}`;
-      const player = new Player();
-      player.id = botId;
-      player.sessionId = botId;
-      player.teamIndex = i;
-      player.hp = PLAYER_HP;
-      player.maxHp = PLAYER_HP;
-      player.isBot = true;
+        const spawn = this.getTeamSpawnPosition(i, slot);
+        player.x = spawn.x;
+        player.y = spawn.y;
+        player.targetX = spawn.x;
+        player.targetY = spawn.y;
+        player.alive = true;
 
-      const spawn = this.getTeamSpawnPosition(i);
-      player.x = spawn.x;
-      player.y = spawn.y;
-      player.targetX = spawn.x;
-      player.targetY = spawn.y;
-      player.alive = true;
+        this.state.players.set(botId, player);
 
-      this.state.players.set(botId, player);
-
-      const team = this.state.teams[i];
-      if (team) {
-        team.playerIds.push(botId);
+        const team = this.state.teams[i];
+        if (team) {
+          team.playerIds.push(botId);
+        }
       }
     }
   }

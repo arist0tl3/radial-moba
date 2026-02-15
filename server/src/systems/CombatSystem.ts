@@ -9,9 +9,13 @@ import {
   PLAYER_REGEN_PER_SEC,
   PLAYER_BASE_REGEN_PER_SEC,
   PLAYER_BASE_REGEN_RANGE,
-  MINION_ATTACK_DAMAGE,
-  MINION_ATTACK_RANGE,
-  MINION_ATTACK_COOLDOWN,
+  MELEE_MINION_ATTACK_DAMAGE,
+  MELEE_MINION_ATTACK_RANGE,
+  MELEE_MINION_ATTACK_COOLDOWN,
+  CASTER_MINION_ATTACK_DAMAGE,
+  CASTER_MINION_ATTACK_RANGE,
+  CASTER_MINION_ATTACK_COOLDOWN,
+  CASTER_MINION_PROJECTILE_SPEED,
   OBJECTIVE_RADIUS,
   BASE_RADIUS,
   TOWER_RADIUS,
@@ -27,6 +31,7 @@ import {
   LEVEL_BONUS_REGEN,
   LEVEL_BONUS_DEFENSE,
 } from '../shared/constants';
+import { spawnProjectile } from './StructureSystem';
 
 function distance(ax: number, ay: number, bx: number, by: number): number {
   return Math.sqrt((ax - bx) ** 2 + (ay - by) ** 2);
@@ -194,8 +199,31 @@ export function updateCombat(state: GameState, dt: number) {
       return;
     }
 
-    applyDamageFromMinion(state, minion, targetEntity, MINION_ATTACK_DAMAGE);
-    minion.attackCooldown = MINION_ATTACK_COOLDOWN;
+    const isCaster = minion.minionType === 'caster';
+    const attackDamage = isCaster ? CASTER_MINION_ATTACK_DAMAGE : MELEE_MINION_ATTACK_DAMAGE;
+    const attackRange = isCaster ? CASTER_MINION_ATTACK_RANGE : MELEE_MINION_ATTACK_RANGE;
+    const attackCooldown = isCaster ? CASTER_MINION_ATTACK_COOLDOWN : MELEE_MINION_ATTACK_COOLDOWN;
+
+    // Check range before attacking
+    const targetPos = getTargetPosition(state, targetEntity);
+    if (!targetPos) return;
+    const dist = distance(minion.x, minion.y, targetPos.x, targetPos.y);
+    if (dist > attackRange + targetPos.radius) return;
+
+    if (isCaster) {
+      // Casters fire projectiles — only target players and minions (not structures)
+      if (targetEntity.kind === 'player' || targetEntity.kind === 'minion') {
+        const targetId = targetEntity.kind === 'player' ? targetEntity.entity.id : targetEntity.entity.id;
+        spawnProjectile(state, minion.x, minion.y, targetId, attackDamage, minion.teamIndex, CASTER_MINION_PROJECTILE_SPEED);
+      } else {
+        // Casters attacking structures deal instant damage like melee
+        applyDamageFromMinion(state, minion, targetEntity, attackDamage);
+      }
+    } else {
+      // Melee deal instant damage
+      applyDamageFromMinion(state, minion, targetEntity, attackDamage);
+    }
+    minion.attackCooldown = attackCooldown;
   });
 
   // Reduce minion cooldowns
@@ -448,11 +476,13 @@ function respawnPlayer(state: GameState, player: Player) {
   player.alive = true;
   player.hp = player.maxHp;
 
-  // Respawn at base
-  player.x = base.x;
-  player.y = base.y;
-  player.targetX = base.x;
-  player.targetY = base.y;
+  // Respawn at base with random offset to prevent stacking
+  const offsetX = (Math.random() - 0.5) * 60;
+  const offsetY = (Math.random() - 0.5) * 60;
+  player.x = base.x + offsetX;
+  player.y = base.y + offsetY;
+  player.targetX = player.x;
+  player.targetY = player.y;
 }
 
 /**

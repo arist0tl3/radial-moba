@@ -1,11 +1,17 @@
 import { GameState } from '../state/GameState';
 import {
   PLAYER_COLLISION_RADIUS,
-  MINION_COLLISION_RADIUS,
+  MELEE_MINION_COLLISION_RADIUS,
+  CASTER_MINION_COLLISION_RADIUS,
   OBJECTIVE_RADIUS,
   BASE_RADIUS,
   TOWER_RADIUS,
 } from '../shared/constants';
+import { Minion } from '../state/Minion';
+
+function getMinionRadius(minion: Minion): number {
+  return minion.minionType === 'caster' ? CASTER_MINION_COLLISION_RADIUS : MELEE_MINION_COLLISION_RADIUS;
+}
 
 function distance(ax: number, ay: number, bx: number, by: number): number {
   return Math.sqrt((ax - bx) ** 2 + (ay - by) ** 2);
@@ -70,14 +76,14 @@ export function updateCollisions(state: GameState) {
   // Player ↔ Minion
   for (const player of players) {
     for (const minion of minions) {
-      separatePair(player, minion, PLAYER_COLLISION_RADIUS, MINION_COLLISION_RADIUS);
+      separatePair(player, minion, PLAYER_COLLISION_RADIUS, getMinionRadius(minion));
     }
   }
 
   // Minion ↔ Minion
   for (let i = 0; i < minions.length; i++) {
     for (let j = i + 1; j < minions.length; j++) {
-      separatePair(minions[i], minions[j], MINION_COLLISION_RADIUS, MINION_COLLISION_RADIUS);
+      separatePair(minions[i], minions[j], getMinionRadius(minions[i]), getMinionRadius(minions[j]));
     }
   }
 
@@ -91,7 +97,7 @@ export function updateCollisions(state: GameState) {
   // Minion ↔ Objective (static)
   if (state.objective.hp > 0) {
     for (const minion of minions) {
-      separateFromStatic(minion, state.objective, MINION_COLLISION_RADIUS, OBJECTIVE_RADIUS);
+      separateFromStatic(minion, state.objective, getMinionRadius(minion), OBJECTIVE_RADIUS);
     }
   }
 
@@ -111,7 +117,7 @@ export function updateCollisions(state: GameState) {
       if (minion.teamIndex === base.teamIndex) continue;
       if (base.destroyed && base.capturedByTeam === minion.teamIndex) continue;
       if (base.destroyed && base.capturedByTeam < 0) continue; // destroyed, uncaptured — no collision
-      separateFromStatic(minion, base, MINION_COLLISION_RADIUS, BASE_RADIUS);
+      separateFromStatic(minion, base, getMinionRadius(minion), BASE_RADIUS);
     }
   });
 
@@ -127,7 +133,7 @@ export function updateCollisions(state: GameState) {
   state.towers.forEach((tower) => {
     if (tower.destroyed) return;
     for (const minion of minions) {
-      separateFromStatic(minion, tower, MINION_COLLISION_RADIUS, TOWER_RADIUS);
+      separateFromStatic(minion, tower, getMinionRadius(minion), TOWER_RADIUS);
     }
   });
 }
