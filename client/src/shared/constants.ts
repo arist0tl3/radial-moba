@@ -27,13 +27,13 @@ export const BASE_ATTACK_COOLDOWN = 1500; // ms
 export const PLAYER_HP = 500;
 export const PLAYER_SPEED = 130; // pixels per second
 export const PLAYER_ATTACK_DAMAGE = 50;
-export const PLAYER_ATTACK_RANGE = 120; // pixels
+export const PLAYER_ATTACK_RANGE = 160; // pixels
 export const PLAYER_ATTACK_COOLDOWN = 1000; // ms
 export const PLAYER_ABILITY_DAMAGE = 120;
 export const PLAYER_ABILITY_RANGE = 350;
 export const PLAYER_ABILITY_COOLDOWN = 5000; // ms
 export const PLAYER_RESPAWN_BASE = 5000; // ms, increases with deaths
-export const PLAYER_COLLISION_RADIUS = 40;
+export const PLAYER_COLLISION_RADIUS = 70;
 export const PLAYER_REGEN_PER_SEC = 2; // Baseline HP regen per second
 export const PLAYER_BASE_REGEN_PER_SEC = 10; // Boosted regen when near own base
 export const PLAYER_BASE_REGEN_RANGE = 350; // Distance from base center for boosted regen
@@ -47,9 +47,9 @@ export const MINION_COLLISION_RADIUS = 14;
 // Melee minions
 export const MELEE_MINION_HP = 250;
 export const MELEE_MINION_ATTACK_DAMAGE = 20;
-export const MELEE_MINION_ATTACK_RANGE = 50;
+export const MELEE_MINION_ATTACK_RANGE = 70;
 export const MELEE_MINION_ATTACK_COOLDOWN = 1500; // ms
-export const MELEE_MINION_COLLISION_RADIUS = 30;
+export const MELEE_MINION_COLLISION_RADIUS = 50;
 export const MELEE_MINIONS_PER_WAVE = 3;
 
 // Caster minions
@@ -57,7 +57,7 @@ export const CASTER_MINION_HP = 150;
 export const CASTER_MINION_ATTACK_DAMAGE = 30;
 export const CASTER_MINION_ATTACK_RANGE = 200;
 export const CASTER_MINION_ATTACK_COOLDOWN = 2000; // ms
-export const CASTER_MINION_COLLISION_RADIUS = 25;
+export const CASTER_MINION_COLLISION_RADIUS = 40;
 export const CASTER_MINION_PROJECTILE_SPEED = 350;
 export const CASTER_MINIONS_PER_WAVE = 2;
 

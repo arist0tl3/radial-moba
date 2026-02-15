@@ -331,7 +331,7 @@ export class GameScene extends Phaser.Scene {
         const color = TEAM_COLORS[base.teamIndex] ?? 0x888888;
         const baseSprite = this.add.sprite(base.x, base.y, 'statue');
         baseSprite.setTint(color);
-        baseSprite.setScale(1.8);
+        baseSprite.setScale(4.0);
         baseSprite.setDepth(3);
         this.baseSprites.set(key, baseSprite);
 
@@ -453,10 +453,10 @@ export class GameScene extends Phaser.Scene {
       if (hpBar) {
         hpBar.clear();
         if (!base.destroyed) {
-          const barWidth = 65;
+          const barWidth = 80;
           const barHeight = 5;
           const bx = base.x - barWidth / 2;
-          const by = base.y - 50;
+          const by = base.y - 70;
           const hpPct = Math.max(0, base.hp / base.maxHp);
 
           // Background
