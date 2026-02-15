@@ -87,6 +87,14 @@ export class GameRoom extends Room<GameState> {
   }
 
   onJoin(client: Client, options: { teamIndex?: number }) {
+    // If this player already exists (reconnection), just restore them
+    const existing = this.state.players.get(client.sessionId);
+    if (existing) {
+      existing.alive = true;
+      this.inputQueue.set(client.sessionId, []);
+      return;
+    }
+
     const teamIndex = options.teamIndex ?? this.assignTeam();
 
     // Count existing members on this team to determine slot index
@@ -235,6 +243,9 @@ export class GameRoom extends Room<GameState> {
   }
 
   private startGame() {
+    // Guard against double-invocation
+    if (this.gameLoopInterval || this.state.phase === 'playing') return;
+
     // Fill empty teams with AI bots
     this.createBots();
 

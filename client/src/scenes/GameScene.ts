@@ -272,7 +272,10 @@ export class GameScene extends Phaser.Scene {
 
   private async connectToGame() {
     try {
-      const room = await networkClient.joinGame(this.gameRoomId, { teamIndex: this.myTeamIndex });
+      // If we already have a game room (from session reconnect), use it;
+      // otherwise join fresh
+      const room = networkClient.gameRoom
+        ?? await networkClient.joinGame(this.gameRoomId, { teamIndex: this.myTeamIndex });
 
       // Listen for state changes
       room.state.players.onAdd((player: any, key: string) => {
