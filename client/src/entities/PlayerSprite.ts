@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { TEAM_COLORS } from '../shared/constants';
+import { TEAM_COLORS, PLAYER_COLLISION_RADIUS } from '../shared/constants';
 
 export class PlayerSprite {
   public sprite: Phaser.GameObjects.Sprite;
@@ -20,15 +20,15 @@ export class PlayerSprite {
 
     const color = TEAM_COLORS[playerState.teamIndex] ?? 0xffffff;
 
-    // Team-colored circle underneath the sprite as a ground marker
-    const markerRadius = isMe ? 48 : 42;
-    this.teamMarker = scene.add.circle(playerState.x, playerState.y + 34, markerRadius, color, 0.35);
+    // Team-colored circle underneath — matches server collision radius
+    const markerRadius = PLAYER_COLLISION_RADIUS;
+    this.teamMarker = scene.add.circle(playerState.x, playerState.y + 14, markerRadius, color, 0.35);
     this.teamMarker.setStrokeStyle(isMe ? 3 : 2, color, 0.8);
     this.teamMarker.setDepth(9);
 
-    // Character sprite — no tint, natural colors
+    // Character sprite — scaled to match collision footprint
     this.sprite = scene.add.sprite(playerState.x, playerState.y, 'soldier-idle');
-    this.sprite.setScale(isMe ? 5.0 : 4.5);
+    this.sprite.setScale(isMe ? 1.4 : 1.3);
     this.sprite.setDepth(10);
     this.sprite.play('soldier-idle');
 
@@ -39,7 +39,7 @@ export class PlayerSprite {
     this.hpBar.setDepth(11);
 
     const label = isMe ? 'YOU' : '';
-    this.nameTag = scene.add.text(playerState.x, playerState.y - 195, label, {
+    this.nameTag = scene.add.text(playerState.x, playerState.y - 65, label, {
       fontSize: '12px',
       color: '#ffffff',
       stroke: '#000000',
@@ -59,7 +59,7 @@ export class PlayerSprite {
 
     this.sprite.x = newX;
     this.sprite.y = newY;
-    this.teamMarker.setPosition(newX, newY + 34);
+    this.teamMarker.setPosition(newX, newY + 14);
 
     // Flip sprite based on horizontal movement direction
     if (Math.abs(dx) > 0.1) {
@@ -111,10 +111,10 @@ export class PlayerSprite {
 
     // Update HP bar
     this.hpBar.clear();
-    const barWidth = 100;
-    const barHeight = 8;
+    const barWidth = 60;
+    const barHeight = 5;
     const x = this.sprite.x - barWidth / 2;
-    const y = this.sprite.y - 180;
+    const y = this.sprite.y - 55;
     const hpPct = Math.max(0, state.hp / state.maxHp);
 
     // Background
@@ -127,7 +127,7 @@ export class PlayerSprite {
     this.hpBar.fillRect(x, y, barWidth * hpPct, barHeight);
 
     // Update name tag position
-    this.nameTag.setPosition(this.sprite.x, this.sprite.y - 195);
+    this.nameTag.setPosition(this.sprite.x, this.sprite.y - 65);
 
     this.prevX = this.sprite.x;
     this.prevY = this.sprite.y;

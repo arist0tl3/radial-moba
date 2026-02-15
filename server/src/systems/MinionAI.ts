@@ -30,21 +30,21 @@ function spawnMinionsAtBase(
   const team = state.teams[teamIndex];
   if (!team || team.eliminated) return;
 
-  // Spawn melee minions first (in front)
+  // Spawn melee minions first (in front) — spaced by collision diameter
   for (let i = 0; i < MELEE_MINIONS_PER_WAVE; i++) {
     const minion = new Minion();
     minion.id = `minion_${minionIdCounter++}`;
     minion.teamIndex = teamIndex;
     minion.minionType = 'melee';
-    minion.x = baseX + (i - 1) * 20;
-    minion.y = baseY + (i - 1) * 20;
+    minion.x = baseX + (i - 1) * 65;
+    minion.y = baseY + (i - 1) * 65;
     minion.hp = MELEE_MINION_HP;
     minion.maxHp = MELEE_MINION_HP;
     minion.state = 'walking';
     state.minions.set(minion.id, minion);
   }
 
-  // Spawn caster minions behind melee
+  // Spawn caster minions behind melee — spaced by collision diameter
   for (let i = 0; i < CASTER_MINIONS_PER_WAVE; i++) {
     const minion = new Minion();
     minion.id = `minion_${minionIdCounter++}`;
@@ -52,9 +52,9 @@ function spawnMinionsAtBase(
     minion.minionType = 'caster';
     // Offset casters behind the melee wave (further from center)
     const angleToCenter = Math.atan2(MAP_RADIUS - baseY, MAP_RADIUS - baseX);
-    const behindDist = 40;
-    minion.x = baseX - Math.cos(angleToCenter) * behindDist + (i - 0.5) * 20;
-    minion.y = baseY - Math.sin(angleToCenter) * behindDist + (i - 0.5) * 20;
+    const behindDist = 100;
+    minion.x = baseX - Math.cos(angleToCenter) * behindDist + (i - 0.5) * 55;
+    minion.y = baseY - Math.sin(angleToCenter) * behindDist + (i - 0.5) * 55;
     minion.hp = CASTER_MINION_HP;
     minion.maxHp = CASTER_MINION_HP;
     minion.state = 'walking';
@@ -91,9 +91,9 @@ export function spawnObjectiveMinionWave(state: GameState) {
       minion.id = `minion_${minionIdCounter++}`;
       minion.teamIndex = -1; // Neutral — hostile to all teams
       minion.minionType = 'melee';
-      // Spawn near center with slight offset
-      minion.x = cx + (i - 0.5) * 15;
-      minion.y = cy + (i - 0.5) * 15;
+      // Spawn near center with offset to avoid stacking
+      minion.x = cx + (i - 0.5) * 65;
+      minion.y = cy + (i - 0.5) * 65;
       minion.hp = MELEE_MINION_HP;
       minion.maxHp = MELEE_MINION_HP;
       minion.state = 'walking';
@@ -119,8 +119,8 @@ export function spawnTowerMinionWave(state: GameState) {
       minion.id = `minion_${minionIdCounter++}`;
       minion.teamIndex = -1; // Neutral — hostile to all
       minion.minionType = 'melee';
-      minion.x = tower.x + (i - 0.5) * 15;
-      minion.y = tower.y + (i - 0.5) * 15;
+      minion.x = tower.x + (i - 0.5) * 65;
+      minion.y = tower.y + (i - 0.5) * 65;
       minion.hp = MELEE_MINION_HP;
       minion.maxHp = MELEE_MINION_HP;
       minion.state = 'walking';

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { TEAM_COLORS } from '../shared/constants';
+import { TEAM_COLORS, MELEE_MINION_COLLISION_RADIUS, CASTER_MINION_COLLISION_RADIUS } from '../shared/constants';
 
 export class MinionSprite {
   private sprite: Phaser.GameObjects.Sprite;
@@ -17,16 +17,16 @@ export class MinionSprite {
 
     const color = TEAM_COLORS[minionState.teamIndex] ?? 0xffffff;
 
-    // Team-colored circle underneath
-    const markerRadius = this.isCaster ? 22 : 28;
-    const markerYOffset = this.isCaster ? 16 : 20;
+    // Team-colored circle underneath — matches server collision radius
+    const markerRadius = this.isCaster ? CASTER_MINION_COLLISION_RADIUS : MELEE_MINION_COLLISION_RADIUS;
+    const markerYOffset = this.isCaster ? 8 : 10;
     this.teamMarker = scene.add.circle(minionState.x, minionState.y + markerYOffset, markerRadius, color, 0.35);
     this.teamMarker.setStrokeStyle(2, color, 0.8);
     this.teamMarker.setDepth(4);
 
-    // Character sprite — no tint for melee, blue tint for casters
+    // Character sprite — scaled to match collision footprint
     this.sprite = scene.add.sprite(minionState.x, minionState.y, 'orc-idle');
-    this.sprite.setScale(this.isCaster ? 2.8 : 3.5);
+    this.sprite.setScale(this.isCaster ? 0.85 : 1.0);
     this.sprite.setDepth(5);
     this.sprite.play('orc-idle');
 
@@ -50,7 +50,7 @@ export class MinionSprite {
 
     this.sprite.x = newX;
     this.sprite.y = newY;
-    const markerYOffset = this.isCaster ? 16 : 20;
+    const markerYOffset = this.isCaster ? 8 : 10;
     this.teamMarker.setPosition(newX, newY + markerYOffset);
 
     // Flip based on horizontal movement
@@ -66,10 +66,10 @@ export class MinionSprite {
     // Draw HP bar
     this.hpBar.clear();
     if (alive) {
-      const barWidth = this.isCaster ? 40 : 50;
+      const barWidth = this.isCaster ? 35 : 45;
       const barHeight = 4;
       const bx = this.sprite.x - barWidth / 2;
-      const by = this.sprite.y - (this.isCaster ? 42 : 52);
+      const by = this.sprite.y - (this.isCaster ? 32 : 38);
       const hpPct = Math.max(0, state.hp / state.maxHp);
 
       // Background

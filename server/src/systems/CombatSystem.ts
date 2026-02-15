@@ -20,6 +20,8 @@ import {
   BASE_RADIUS,
   TOWER_RADIUS,
   XP_PER_MINION_KILL,
+  XP_PER_MINION_NEARBY,
+  XP_NEARBY_RANGE,
   XP_PER_PLAYER_KILL,
   XP_PER_STRUCTURE_HIT,
   XP_PER_TOWER_KILL,
@@ -37,6 +39,9 @@ import { spawnProjectile } from './StructureSystem';
 function distance(ax: number, ay: number, bx: number, by: number): number {
   return Math.sqrt((ax - bx) ** 2 + (ay - by) ** 2);
 }
+
+/** Track which minions were last-hit by a player (minionKey → playerId). */
+const playerLastHitMinions = new Map<string, string>();
 
 // --- Leveling ---
 
@@ -234,7 +239,7 @@ export function updateCombat(state: GameState, dt: number) {
     }
   });
 
-  // Remove dead minions
+  // Remove dead minions and award proximity XP (last-hitting)
   const deadMinions: string[] = [];
   state.minions.forEach((minion, key) => {
     if (minion.hp <= 0) {
@@ -242,6 +247,23 @@ export function updateCombat(state: GameState, dt: number) {
     }
   });
   for (const key of deadMinions) {
+    const minion = state.minions.get(key);
+    if (minion) {
+      // Award proximity XP to nearby enemy players (last-hit mechanic)
+      // Players who last-hit already got XP_PER_MINION_KILL above, so
+      // check if anyone got a last-hit bonus via playerLastHitMinions
+      const lastHitter = playerLastHitMinions.get(key);
+      state.players.forEach((player) => {
+        if (!player.alive) return;
+        if (player.teamIndex === minion.teamIndex) return; // Same team — no XP
+        if (player.id === lastHitter) return; // Already got full last-hit XP
+        const dist = distance(player.x, player.y, minion.x, minion.y);
+        if (dist <= XP_NEARBY_RANGE) {
+          awardXP(player, XP_PER_MINION_NEARBY);
+        }
+      });
+      playerLastHitMinions.delete(key);
+    }
     state.minions.delete(key);
   }
 }
@@ -354,7 +376,9 @@ function applyDamage(
     case 'minion':
       target.entity.hp -= damage;
       if (target.entity.hp <= 0) {
+        // Last-hit! Full XP for the killing blow
         awardXP(attacker, XP_PER_MINION_KILL);
+        playerLastHitMinions.set(target.entity.id, attacker.id);
       }
       break;
     case 'objective':

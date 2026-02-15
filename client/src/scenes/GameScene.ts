@@ -331,7 +331,7 @@ export class GameScene extends Phaser.Scene {
         const color = TEAM_COLORS[base.teamIndex] ?? 0x888888;
         const baseSprite = this.add.sprite(base.x, base.y, 'statue');
         baseSprite.setTint(color);
-        baseSprite.setScale(4.0);
+        baseSprite.setScale(1.8);
         baseSprite.setDepth(3);
         this.baseSprites.set(key, baseSprite);
 
@@ -453,10 +453,10 @@ export class GameScene extends Phaser.Scene {
       if (hpBar) {
         hpBar.clear();
         if (!base.destroyed) {
-          const barWidth = 80;
+          const barWidth = 65;
           const barHeight = 5;
           const bx = base.x - barWidth / 2;
-          const by = base.y - 70;
+          const by = base.y - 50;
           const hpPct = Math.max(0, base.hp / base.maxHp);
 
           // Background
@@ -553,8 +553,8 @@ export class GameScene extends Phaser.Scene {
     const distSq = (ax: number, ay: number, bx: number, by: number) =>
       (ax - bx) ** 2 + (ay - by) ** 2;
 
-    // 1. Enemy players (hit radius ~35px)
-    const PLAYER_HIT_RADIUS = 35;
+    // 1. Enemy players (hit radius matches collision)
+    const PLAYER_HIT_RADIUS = 45;
     let closestId = '';
     let closestDist = Infinity;
 
@@ -568,8 +568,8 @@ export class GameScene extends Phaser.Scene {
     });
     if (closestId) return closestId;
 
-    // 2. Enemy minions (hit radius ~28px)
-    const MINION_HIT_RADIUS = 28;
+    // 2. Enemy minions (hit radius matches collision)
+    const MINION_HIT_RADIUS = 35;
     closestDist = Infinity;
 
     room.state.minions.forEach((minion: any, key: string) => {
@@ -664,14 +664,14 @@ export class GameScene extends Phaser.Scene {
       if (player && player.alive) {
         tx = player.x;
         ty = player.y;
-        radius = 32;
+        radius = 45;
         found = true;
       } else {
         const minion = room.state.minions.get(this.currentTargetId);
         if (minion && minion.hp > 0) {
           tx = minion.x;
           ty = minion.y;
-          radius = 24;
+          radius = 35;
           found = true;
         }
       }

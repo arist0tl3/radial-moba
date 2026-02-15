@@ -14,7 +14,31 @@ import {
   BASE_ATTACK_RANGE,
   TOWER_ATTACK_RANGE,
   TOWER_RADIUS,
+  MAP_RADIUS,
+  NUM_TEAMS,
 } from '../shared/constants';
+
+/** Half-width of the lane wedge in radians (~55° each side of the lane axis). */
+const LANE_HALF_ANGLE = Math.PI / (NUM_TEAMS * 0.8); // ~0.78 rad for 4 teams
+
+/** Get the base angle for a team's lane (pointing outward from center). */
+function getLaneAngle(teamIndex: number): number {
+  return (teamIndex / NUM_TEAMS) * Math.PI * 2 - Math.PI / 2;
+}
+
+/**
+ * Check if a world position is within a team's lane wedge.
+ * The lane is a pie-slice centered on the angle from map center to the team's base.
+ */
+function isInLane(teamIndex: number, x: number, y: number): boolean {
+  const laneAngle = getLaneAngle(teamIndex);
+  const posAngle = Math.atan2(y - MAP_RADIUS, x - MAP_RADIUS);
+  let diff = posAngle - laneAngle;
+  // Normalize to [-PI, PI]
+  while (diff > Math.PI) diff -= Math.PI * 2;
+  while (diff < -Math.PI) diff += Math.PI * 2;
+  return Math.abs(diff) <= LANE_HALF_ANGLE;
+}
 
 function distance(ax: number, ay: number, bx: number, by: number): number {
   return Math.sqrt((ax - bx) ** 2 + (ay - by) ** 2);
@@ -148,35 +172,44 @@ function getStructureInfo(
 
 /**
  * Find the best target for a bot to attack.
- * Priority: enemy players > enemy minions > enemy bases > objective
- * For structures, only target them if friendly minions are nearby to tank.
+ * Bots strongly prefer targets in their own lane (the wedge from base toward center).
+ * Priority: enemy players > enemy minions > own lane tower > enemy bases > objective
  */
 function findBotTarget(state: GameState, bot: Player): string {
   let nearestId = '';
   let nearestDist = Infinity;
 
-  // 1. Nearest enemy player within scan range
+  // 1. Nearest enemy player in scan range — prefer in-lane, fall back to any
+  let lanePlayerId = '';
+  let lanePlayerDist = Infinity;
+  let anyPlayerId = '';
+  let anyPlayerDist = Infinity;
   state.players.forEach((other, key) => {
     if (!other.alive || other.teamIndex === bot.teamIndex) return;
     const dist = distance(bot.x, bot.y, other.x, other.y);
-    if (dist < BOT_SCAN_RANGE && dist < nearestDist) {
-      nearestDist = dist;
-      nearestId = key;
+    if (dist >= BOT_SCAN_RANGE) return;
+    if (isInLane(bot.teamIndex, other.x, other.y)) {
+      if (dist < lanePlayerDist) { lanePlayerDist = dist; lanePlayerId = key; }
     }
+    if (dist < anyPlayerDist) { anyPlayerDist = dist; anyPlayerId = key; }
   });
-  if (nearestId) return nearestId;
+  // Always fight players who are very close (within attack range), regardless of lane
+  if (anyPlayerId && anyPlayerDist < PLAYER_ATTACK_RANGE * 3) return anyPlayerId;
+  if (lanePlayerId) return lanePlayerId;
 
-  // 2. Nearest enemy minion within scan range
-  nearestDist = Infinity;
+  // 2. Nearest enemy minion in scan range — prefer in-lane
+  let laneMinionId = '';
+  let laneMinionDist = Infinity;
   state.minions.forEach((minion, key) => {
     if (minion.teamIndex === bot.teamIndex || minion.hp <= 0) return;
     const dist = distance(bot.x, bot.y, minion.x, minion.y);
-    if (dist < BOT_SCAN_RANGE && dist < nearestDist) {
-      nearestDist = dist;
-      nearestId = key;
+    if (dist >= BOT_SCAN_RANGE) return;
+    if (isInLane(bot.teamIndex, minion.x, minion.y) && dist < laneMinionDist) {
+      laneMinionDist = dist;
+      laneMinionId = key;
     }
   });
-  if (nearestId) return nearestId;
+  if (laneMinionId) return laneMinionId;
 
   // 3. Own lane tower (neutral structure blocking path to center)
   const ownLaneTower = state.towers.get(String(bot.teamIndex));
@@ -184,29 +217,23 @@ function findBotTarget(state: GameState, bot: Player): string {
     return `tower_${bot.teamIndex}`;
   }
 
-  // 4. Nearest enemy base (any distance) — but only if minions are escorting
-  nearestDist = Infinity;
-  let bestBaseId = '';
-  state.bases.forEach((base) => {
-    if (base.teamIndex === bot.teamIndex || base.destroyed) return;
-    // Also skip bases captured by our team
-    if (base.capturedByTeam === bot.teamIndex) return;
-    const dist = distance(bot.x, bot.y, base.x, base.y);
-    if (dist < nearestDist) {
-      nearestDist = dist;
-      bestBaseId = `base_${base.teamIndex}`;
-    }
-  });
-  if (bestBaseId) {
-    const info = getStructureInfo(state, bestBaseId);
-    if (info && hasFriendlyMinionsNear(state, bot.teamIndex, info.x, info.y, BOT_MINION_ESCORT_RANGE)) {
-      return bestBaseId;
-    }
-    // No minion escort — still set as target but bot will hold back (handled in main loop)
-    return bestBaseId;
+  // 4. Walk toward center along lane if tower is down but no other target
+  //    (bot stays in lane instead of wandering to another base)
+  //    Find the lane's forward position (halfway between tower pos and center)
+  const laneAngle = getLaneAngle(bot.teamIndex);
+  const forwardDist = MAP_RADIUS * 0.25; // 25% radius — between tower and center
+  const forwardX = MAP_RADIUS + Math.cos(laneAngle) * forwardDist;
+  const forwardY = MAP_RADIUS + Math.sin(laneAngle) * forwardDist;
+  const distToForward = distance(bot.x, bot.y, forwardX, forwardY);
+
+  // If far from forward position, walk there first (stay in lane)
+  if (distToForward > 300) {
+    bot.targetX = forwardX;
+    bot.targetY = forwardY;
+    return ''; // No attack target — just move
   }
 
-  // 5. Central objective (always available as fallback)
+  // 5. Central objective (if close enough after walking forward)
   if (state.objective.hp > 0) {
     return 'objective';
   }
