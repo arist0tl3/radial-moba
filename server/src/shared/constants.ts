@@ -5,7 +5,7 @@ export const TICK_RATE = 20; // Server ticks per second
 export const TICK_INTERVAL = 1000 / TICK_RATE;
 
 // Map
-export const MAP_RADIUS = 3500; // pixels from center to edge
+export const MAP_RADIUS = 9000; // pixels from center to edge
 export const TILE_SIZE = 32;
 export const NUM_TEAMS = 4; // Hardcoded for MVP
 
@@ -41,7 +41,7 @@ export const PLAYER_BASE_REGEN_RANGE = 350; // Distance from base center for boo
 // Minions
 export const MINION_SPEED = 80;
 export const MINION_AGGRO_RANGE = 260;
-export const MINION_SPAWN_INTERVAL = 20000; // ms
+export const MINION_SPAWN_INTERVAL = 10000; // ms
 export const MINION_COLLISION_RADIUS = 14;
 
 // Melee minions
@@ -74,28 +74,29 @@ export const OBJECTIVE_MINIONS_PER_BASE = 3; // spawned per active base each wav
 export const PROJECTILE_SPEED = 400; // pixels per second
 
 // Lane towers (neutral)
-export const TOWER_HP = 1500;
+export const TOWER_HP = 2500;
 export const TOWER_RADIUS = 56;
-export const TOWER_ATTACK_DAMAGE = 35;
-export const TOWER_ATTACK_RANGE = 306;
-export const TOWER_ATTACK_COOLDOWN = 1500; // ms
+export const TOWER_ATTACK_DAMAGE = 80;
+export const TOWER_ATTACK_RANGE = 350;
+export const TOWER_ATTACK_COOLDOWN = 1000; // ms
 export const TOWER_RADIUS_PERCENT = 0.50; // Position at 50% between base and center
-export const TOWER_MINION_SPAWN_INTERVAL = 40000; // ms
-export const TOWER_MINIONS_PER_WAVE = 3;
+export const TOWER_MINION_SPAWN_INTERVAL = 15000; // ms
+export const TOWER_MINIONS_PER_WAVE = 4;
 
 // Bots
-export const BOT_SCAN_RANGE = 875; // How far bots look for targets
+export const BOT_SCAN_RANGE = 1200; // How far bots look for targets
 export const BOT_RETREAT_HP_PERCENT = 0.3; // Retreat below 30% HP
-export const BOT_STRUCTURE_SAFE_DIST = 88; // Extra buffer beyond structure attack range
-export const BOT_MINION_ESCORT_RANGE = 525; // Friendly minions must be this close to structure
+export const BOT_STRUCTURE_SAFE_DIST = 120; // Extra buffer beyond structure attack range
+export const BOT_MINION_ESCORT_RANGE = 700; // Friendly minions must be this close to structure
 export const BOT_DECISION_INTERVAL = 2000; // ms — re-evaluate targets every 2 seconds
-export const BOT_BASE_DEFEND_RANGE = 700; // How close enemies must be to own base to trigger defense
+export const BOT_BASE_DEFEND_RANGE = 900; // How close enemies must be to own base to trigger defense
 
 // Leveling
 export const XP_PER_MINION_KILL = 30;
 export const XP_PER_PLAYER_KILL = 100;
 export const XP_PER_STRUCTURE_HIT = 5;
-export const XP_BASE = 100;
+export const XP_PER_TOWER_KILL = 200;
+export const XP_BASE = 80;
 export const XP_PER_LEVEL = 50;
 export const MAX_LEVEL = 10;
 export const LEVEL_BONUS_DAMAGE = 15;

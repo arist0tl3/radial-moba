@@ -22,6 +22,7 @@ import {
   XP_PER_MINION_KILL,
   XP_PER_PLAYER_KILL,
   XP_PER_STRUCTURE_HIT,
+  XP_PER_TOWER_KILL,
   XP_BASE,
   XP_PER_LEVEL,
   MAX_LEVEL,
@@ -381,12 +382,32 @@ function applyDamage(
         if (tower.hp <= 0) {
           tower.hp = 0;
           tower.destroyed = true;
+          // Big XP reward for destroying a tower — shared to all nearby teammates
+          awardTowerKillXP(state, attacker);
         }
       }
       awardXP(attacker, XP_PER_STRUCTURE_HIT);
       break;
     }
   }
+}
+
+/**
+ * Award tower kill XP to the killer and nearby teammates.
+ */
+function awardTowerKillXP(state: GameState, killer: Player) {
+  // Award to killer
+  awardXP(killer, XP_PER_TOWER_KILL);
+
+  // Also award to nearby teammates (within 600px)
+  state.players.forEach((other) => {
+    if (other.id === killer.id) return;
+    if (other.teamIndex !== killer.teamIndex || !other.alive) return;
+    const dist = distance(killer.x, killer.y, other.x, other.y);
+    if (dist <= 600) {
+      awardXP(other, XP_PER_TOWER_KILL);
+    }
+  });
 }
 
 function applyDamageFromMinion(

@@ -54,7 +54,7 @@ export class GameScene extends Phaser.Scene {
     // Set camera bounds to the map
     const mapSize = MAP_RADIUS * 2;
     this.cameras.main.setBounds(0, 0, mapSize, mapSize);
-    this.cameras.main.setZoom(0.8);
+    this.cameras.main.setZoom(0.6);
 
     this.drawMap();
     this.connectToGame();
@@ -123,7 +123,7 @@ export class GameScene extends Phaser.Scene {
     // Scroll wheel to zoom camera
     this.input.on('wheel', (_pointer: Phaser.Input.Pointer, _gos: any[], _dx: number, dy: number) => {
       const cam = this.cameras.main;
-      const newZoom = Phaser.Math.Clamp(cam.zoom - dy * 0.001, 0.5, 1.5);
+      const newZoom = Phaser.Math.Clamp(cam.zoom - dy * 0.001, 0.3, 1.5);
       cam.setZoom(newZoom);
     });
   }
@@ -257,7 +257,7 @@ export class GameScene extends Phaser.Scene {
 
     // Center zone indicator
     g.lineStyle(2, 0x888888, 0.3);
-    g.strokeCircle(cx, cy, 175);
+    g.strokeCircle(cx, cy, 450);
 
     // Tower position indicators (subtle dots at 50% radius on each lane)
     g.fillStyle(0x666666, 0.3);
@@ -266,7 +266,7 @@ export class GameScene extends Phaser.Scene {
       const towerDist = MAP_RADIUS * 0.50;
       const ttx = cx + Math.cos(angle) * towerDist;
       const tty = cy + Math.sin(angle) * towerDist;
-      g.fillCircle(ttx, tty, 10);
+      g.fillCircle(ttx, tty, 24);
     }
   }
 
