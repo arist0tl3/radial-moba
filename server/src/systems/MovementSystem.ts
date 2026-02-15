@@ -4,6 +4,7 @@ import {
   PLAYER_ATTACK_RANGE,
   OBJECTIVE_RADIUS,
   BASE_RADIUS,
+  TOWER_RADIUS,
 } from '../shared/constants';
 
 function distance(ax: number, ay: number, bx: number, by: number): number {
@@ -28,6 +29,13 @@ function getAttackTargetPosition(
     const base = state.bases.get(String(teamIndex));
     if (!base || base.destroyed) return null;
     return { x: base.x, y: base.y, radius: BASE_RADIUS };
+  }
+
+  if (targetId.startsWith('tower_')) {
+    const key = targetId.replace('tower_', '');
+    const tower = state.towers.get(key);
+    if (!tower || tower.destroyed) return null;
+    return { x: tower.x, y: tower.y, radius: TOWER_RADIUS };
   }
 
   const player = state.players.get(targetId);
@@ -60,7 +68,7 @@ export function updateMovement(state: GameState, dt: number) {
 
         if (dist > effectiveRange) {
           // Move toward target
-          const speed = PLAYER_SPEED * dt;
+          const speed = (PLAYER_SPEED + player.bonusSpeed) * dt;
           const dx = target.x - player.x;
           const dy = target.y - player.y;
           if (dist <= speed) {
@@ -85,7 +93,7 @@ export function updateMovement(state: GameState, dt: number) {
 
     if (dist < 2) return; // Close enough
 
-    const speed = PLAYER_SPEED * dt;
+    const speed = (PLAYER_SPEED + player.bonusSpeed) * dt;
     if (dist <= speed) {
       player.x = player.targetX;
       player.y = player.targetY;

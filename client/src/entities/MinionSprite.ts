@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { TEAM_COLORS } from '../shared/constants';
+import { TEAM_COLORS, MELEE_MINION_COLLISION_RADIUS, CASTER_MINION_COLLISION_RADIUS } from '../shared/constants';
 
 export class MinionSprite {
   private sprite: Phaser.GameObjects.Sprite;
@@ -9,22 +9,30 @@ export class MinionSprite {
   private prevX: number = 0;
   private currentAnim: string = '';
   private isPlayingAttack: boolean = false;
+  private isCaster: boolean = false;
 
   constructor(scene: Phaser.Scene, minionState: any) {
     this.scene = scene;
+    this.isCaster = minionState.minionType === 'caster';
 
     const color = TEAM_COLORS[minionState.teamIndex] ?? 0xffffff;
 
-    // Team-colored circle underneath
-    this.teamMarker = scene.add.circle(minionState.x, minionState.y + 12, 16, color, 0.35);
-    this.teamMarker.setStrokeStyle(2, color, 0.8);
+    // Team-colored circle underneath — matches server collision radius
+    const markerRadius = this.isCaster ? CASTER_MINION_COLLISION_RADIUS : MELEE_MINION_COLLISION_RADIUS;
+    const markerYOffset = this.isCaster ? 16 : 20;
+    this.teamMarker = scene.add.circle(minionState.x, minionState.y + markerYOffset, markerRadius, color, 0.2);
+    this.teamMarker.setStrokeStyle(1, color, 0.5);
     this.teamMarker.setDepth(4);
 
-    // Character sprite — no tint, natural colors
+    // Character sprite
     this.sprite = scene.add.sprite(minionState.x, minionState.y, 'orc-idle');
-    this.sprite.setScale(2.0);
+    this.sprite.setScale(this.isCaster ? 2.8 : 3.5);
     this.sprite.setDepth(5);
     this.sprite.play('orc-idle');
+
+    if (this.isCaster) {
+      this.sprite.setTint(0xaaccff);
+    }
 
     this.hpBar = scene.add.graphics();
     this.hpBar.setDepth(6);
@@ -42,7 +50,8 @@ export class MinionSprite {
 
     this.sprite.x = newX;
     this.sprite.y = newY;
-    this.teamMarker.setPosition(newX, newY + 12);
+    const markerYOffset = this.isCaster ? 16 : 20;
+    this.teamMarker.setPosition(newX, newY + markerYOffset);
 
     // Flip based on horizontal movement
     if (Math.abs(dx) > 0.1) {
@@ -57,10 +66,10 @@ export class MinionSprite {
     // Draw HP bar
     this.hpBar.clear();
     if (alive) {
-      const barWidth = 30;
-      const barHeight = 3;
+      const barWidth = this.isCaster ? 40 : 50;
+      const barHeight = 4;
       const bx = this.sprite.x - barWidth / 2;
-      const by = this.sprite.y - 30;
+      const by = this.sprite.y - (this.isCaster ? 42 : 52);
       const hpPct = Math.max(0, state.hp / state.maxHp);
 
       // Background
@@ -98,6 +107,23 @@ export class MinionSprite {
       this.currentAnim = key;
       this.sprite.play(key, true);
     }
+  }
+
+  playDeathAndDestroy() {
+    this.hpBar.setVisible(false);
+    this.teamMarker.setVisible(false);
+
+    this.sprite.play('orc-death');
+    this.sprite.once('animationcomplete', () => {
+      this.destroy();
+    });
+
+    // Safety timeout in case animation doesn't complete
+    this.scene.time.delayedCall(1000, () => {
+      if (this.sprite && this.sprite.active) {
+        this.destroy();
+      }
+    });
   }
 
   destroy() {

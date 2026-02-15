@@ -182,6 +182,10 @@ class NetworkClient {
   sendInput(input: { type: string; [key: string]: unknown }) {
     this._gameRoom?.send('input', input);
   }
+
+  sendMessage(type: string, data: unknown) {
+    this._gameRoom?.send(type, data);
+  }
 }
 
 // Singleton

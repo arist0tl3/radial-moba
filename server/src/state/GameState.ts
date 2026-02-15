@@ -4,6 +4,8 @@ import { Minion } from './Minion';
 import { Team } from './Team';
 import { Base } from './Base';
 import { CentralObjective } from './CentralObjective';
+import { Projectile } from './Projectile';
+import { Tower } from './Tower';
 
 export type GamePhase = 'waiting' | 'playing' | 'finished';
 
@@ -15,5 +17,7 @@ export class GameState extends Schema {
   @type([Team]) teams = new ArraySchema<Team>();
   @type({ map: Base }) bases = new MapSchema<Base>();
   @type(CentralObjective) objective = new CentralObjective();
+  @type({ map: Projectile }) projectiles = new MapSchema<Projectile>();
+  @type({ map: Tower }) towers = new MapSchema<Tower>();
   @type('number') tick: number = 0;
 }

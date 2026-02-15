@@ -1,5 +1,97 @@
 # Changelog
 
+## [1.0.0] - 2026-02-14
+
+### Added
+
+- **Leveling system**: Players earn XP from kills (30 XP per minion, 100 XP per player, 5 XP per structure hit). On level-up (max level 10), players choose between 2 random stat upgrades: +15 Attack Damage, +75 Max HP, +10 Move Speed, +2 HP Regen/s, or +8 Defense. Bots auto-pick randomly.
+- **Level-up UI**: HUD shows current level and XP bar (bottom-left). Popup appears on level-up with 2 buttons showing upgrade descriptions and stat values.
+- **Floating damage numbers**: Red floating text for ally damage, white for enemies/minions, orange for objective, gray for towers. Numbers drift upward and fade over 800ms.
+- **Minimap**: 160px circular overlay (bottom-right) showing all entities — bases as team-colored squares, towers as gray dots, objective as purple dot, minions as tiny team-colored dots, players as larger dots. Click-to-move supported on the minimap.
+- **Minion death animations**: Orc-death animation plays before minions are removed, with 1-second safety timeout.
+
+### Changed
+
+- **Map scaled up**: `MAP_RADIUS` 2000 → 3500 for more room to maneuver and longer travel times.
+- **Player speed reduced**: `PLAYER_SPEED` 150 → 130 to complement the larger map.
+- **Camera zoom default**: Initial camera zoom set to 0.7x to show more of the larger map.
+- **More minions per wave**: `MINIONS_PER_WAVE` 3 → 5, `OBJECTIVE_MINIONS_PER_BASE` 2 → 3, `TOWER_MINIONS_PER_WAVE` 2 → 3.
+- **Faster minion spawns**: `MINION_SPAWN_INTERVAL` 30000ms → 20000ms.
+- **Defense stat**: Player `bonusDefense` reduces incoming damage from all sources (players, minions, structure projectiles) with a minimum of 1 damage.
+
+### Fixed
+
+- **Hardcoded minion spawn interval**: GameRoom used hardcoded `30000` instead of `MINION_SPAWN_INTERVAL` constant for timer comparison.
+
+## [0.9.0] - 2026-02-14
+
+### Added
+
+- **Neutral lane towers**: 4 neutral aggressive towers (1 per lane) positioned at 50% radius from center along each team's lane angle. Towers are neutral (teamIndex -1) — they attack any team's units within range using the existing projectile system.
+- **Tower minion waves**: Each tower spawns 2 neutral minions every 40 seconds that walk outward toward the base in that lane. Creates constant PvE lane pressure that must be dealt with before pushing to center.
+- **Tower destruction**: Towers take damage from players and minions, stay permanently destroyed. Destroying a tower removes minion pressure AND clears the path to the central objective.
+- **Bot lane progression**: Bots now follow natural lane progression — clear own lane tower before pushing to enemy bases or the objective. Uses existing minion-escort safety logic.
+- **Team minion tower aggro**: Team minions aggro on neutral towers as they pass through lanes, creating organic fights around tower positions.
+- **Tower client visuals**: Gray circle towers with inner core detail, HP bars, destroyed rubble state. Click-to-attack targeting, pulsing highlight ring, and subtle map position indicators.
+
+### Changed
+
+- **CombatTarget union extended**: Added `{ kind: 'tower'; towerKey: string }` variant for tower entity resolution across combat, movement, and AI systems.
+
+## [0.8.0] - 2026-02-13
+
+### Added
+
+- **HP regeneration**: All players regenerate health — 2 HP/sec baseline everywhere, boosted to 10 HP/sec when near own base (within 200px). Retreat to base is now a meaningful strategic decision.
+- **Smarter bot AI**: Complete rewrite of bot decision-making with 4 new behaviors:
+  - **Retreat at low HP**: Bots disengage and run to base when below 30% HP, heal up, then resume attacking.
+  - **Minion escort**: Bots wait for friendly minions before diving structures. They hold at safe distance outside tower range until a minion wave arrives.
+  - **Base defense**: Bots prioritize defending their own base when enemies are within 400px of it.
+  - **Decision cooldown**: Bots re-evaluate targets every 2 seconds instead of every tick, with urgent interrupts for low HP, base threats, and dead targets.
+
+## [0.7.0] - 2026-02-13
+
+### Added
+
+- **Objective minion waves**: The central objective spawns neutral minions (teamIndex -1) every 45 seconds. Each wave sends 2 minions toward each active base. Neutral minions are hostile to all teams, aggro on nearby players/minions, and attack bases on arrival. Creates PvE pressure that forces teams to defend.
+
+## [0.6.0] - 2026-02-13
+
+### Added
+
+- **Defensive structure projectiles**: Bases and the central objective now fire traveling projectiles at nearby enemies. Structures prioritize minions over players (classic MOBA tower aggro). Captured bases fire for the capturing team. The objective fires at all teams.
+- **Projectile schema + visuals**: New `Projectile` state schema synced to clients. Rendered as glowing team-colored orbs that travel from structure to target. Damage applied on arrival.
+- **StructureSystem**: New server system with `updateStructureAttacks()` (targeting + cooldown) and `updateProjectiles()` (movement + damage on hit).
+
+## [0.5.0] - 2026-02-13
+
+### Added
+
+- **AI bot players**: Server-side bots fill empty teams when the game starts. BotAI system runs each tick — finds nearest enemy target and sets `attackTargetId`. Existing Movement and Combat systems handle the rest. Solo players can start a full 4-team game.
+- **Click-to-attack targeting**: Click an enemy player, minion, base, or the objective to walk toward and attack it. Pulsing orange ring highlights the selected target. Ground click cancels the attack.
+- **Custom SVG cursors**: Sci-fi pointer for default navigation, sword cursor when hovering over attackable enemies.
+
+### Changed
+
+- **Teams reduced to 1 player each** (`PLAYERS_PER_TEAM = 1`) for MVP testing with bots.
+- **Lobby allows solo start**: `checkAllReady()` now requires only 1 player (bots fill the rest).
+
+## [0.4.0] - 2026-02-13
+
+### Added
+
+- **Sprite art**: Replaced placeholder circles with real sprites — soldier spritesheets (idle/walk/attack/death) for players, orc spritesheets for minions, statue sprite for bases. Added `PreloadScene` for asset loading.
+- **Collision detection**: New `CollisionSystem` with circle-circle separation — players block each other, minions block each other, both pushed away from bases and objective.
+- **Auto-attack animations**: `isAttacking` boolean pulse on Player schema triggers one-shot attack animations on client.
+- **Minion HP bars**: Small colored bar (green/yellow/red) above each minion.
+- **Base capture mechanic**: Destroying a base captures it instead of eliminating the team. Capturing team spawns minions from the captured base. Losing team can no longer respawn but stays alive until killed.
+- **Base HP bars**: Team-colored HP bars above each base.
+
+### Changed
+
+- **Minion attack range reduced** from 40 to 20 (aggro range stays 150).
+- **Objective HP increased to 10,000** for longer games.
+
 ## [0.3.0] - 2026-02-12
 
 ### Added

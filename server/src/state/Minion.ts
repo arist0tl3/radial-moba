@@ -4,6 +4,7 @@ export type MinionState = 'spawning' | 'walking' | 'attacking' | 'dead';
 
 export class Minion extends Schema {
   @type('string') id: string = '';
+  @type('string') minionType: string = 'melee';
   @type('number') teamIndex: number = -1;
   @type('number') x: number = 0;
   @type('number') y: number = 0;

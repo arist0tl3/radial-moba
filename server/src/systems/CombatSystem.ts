@@ -6,16 +6,101 @@ import {
   PLAYER_ATTACK_RANGE,
   PLAYER_ATTACK_COOLDOWN,
   PLAYER_RESPAWN_BASE,
-  MINION_ATTACK_DAMAGE,
-  MINION_ATTACK_RANGE,
-  MINION_ATTACK_COOLDOWN,
+  PLAYER_REGEN_PER_SEC,
+  PLAYER_BASE_REGEN_PER_SEC,
+  PLAYER_BASE_REGEN_RANGE,
+  MELEE_MINION_ATTACK_DAMAGE,
+  MELEE_MINION_ATTACK_RANGE,
+  MELEE_MINION_ATTACK_COOLDOWN,
+  CASTER_MINION_ATTACK_DAMAGE,
+  CASTER_MINION_ATTACK_RANGE,
+  CASTER_MINION_ATTACK_COOLDOWN,
+  CASTER_MINION_PROJECTILE_SPEED,
   OBJECTIVE_RADIUS,
   BASE_RADIUS,
+  TOWER_RADIUS,
+  XP_PER_MINION_KILL,
+  XP_PER_MINION_NEARBY,
+  XP_NEARBY_RANGE,
+  XP_PER_PLAYER_KILL,
+  XP_PER_STRUCTURE_HIT,
+  XP_PER_TOWER_KILL,
+  XP_BASE,
+  XP_PER_LEVEL,
+  MAX_LEVEL,
+  LEVEL_BONUS_DAMAGE,
+  LEVEL_BONUS_MAX_HP,
+  LEVEL_BONUS_SPEED,
+  LEVEL_BONUS_REGEN,
+  LEVEL_BONUS_DEFENSE,
 } from '../shared/constants';
+import { spawnProjectile } from './StructureSystem';
 
 function distance(ax: number, ay: number, bx: number, by: number): number {
   return Math.sqrt((ax - bx) ** 2 + (ay - by) ** 2);
 }
+
+/** Track which minions were last-hit by a player (minionKey → playerId). */
+const playerLastHitMinions = new Map<string, string>();
+
+// --- Leveling ---
+
+export type UpgradeType = 'damage' | 'maxHp' | 'speed' | 'regen' | 'defense';
+
+const ALL_UPGRADES: UpgradeType[] = ['damage', 'maxHp', 'speed', 'regen', 'defense'];
+
+function generateUpgradeChoices(): [UpgradeType, UpgradeType] {
+  const shuffled = [...ALL_UPGRADES].sort(() => Math.random() - 0.5);
+  return [shuffled[0], shuffled[1]];
+}
+
+export function applyUpgrade(player: Player, choice: UpgradeType) {
+  switch (choice) {
+    case 'damage':
+      player.bonusDamage += LEVEL_BONUS_DAMAGE;
+      break;
+    case 'maxHp':
+      player.bonusMaxHp += LEVEL_BONUS_MAX_HP;
+      player.maxHp += LEVEL_BONUS_MAX_HP;
+      player.hp += LEVEL_BONUS_MAX_HP;
+      break;
+    case 'speed':
+      player.bonusSpeed += LEVEL_BONUS_SPEED;
+      break;
+    case 'regen':
+      player.bonusRegen += LEVEL_BONUS_REGEN;
+      break;
+    case 'defense':
+      player.bonusDefense += LEVEL_BONUS_DEFENSE;
+      break;
+  }
+  player.pendingLevelUp = false;
+  player.pendingLevelUpNotified = false;
+}
+
+function awardXP(player: Player, amount: number) {
+  if (player.level >= MAX_LEVEL) return;
+
+  player.xp += amount;
+  while (player.xp >= player.xpToNextLevel && player.level < MAX_LEVEL) {
+    player.xp -= player.xpToNextLevel;
+    player.level++;
+    player.xpToNextLevel = XP_BASE + (player.level - 1) * XP_PER_LEVEL;
+
+    const choices = generateUpgradeChoices();
+    if (!player.isBot) {
+      player.pendingLevelUp = true;
+      player.pendingLevelUpNotified = false;
+      player.pendingChoices = choices;
+    } else {
+      // Bots auto-pick randomly
+      const pick = choices[Math.floor(Math.random() * choices.length)];
+      applyUpgrade(player, pick);
+    }
+  }
+}
+
+// --- Main combat update ---
 
 export function updateCombat(state: GameState, dt: number) {
   const dtMs = dt * 1000;
@@ -28,6 +113,23 @@ export function updateCombat(state: GameState, dt: number) {
     if (player.abilityCooldown > 0) {
       player.abilityCooldown = Math.max(0, player.abilityCooldown - dtMs);
     }
+  });
+
+  // HP regeneration for all alive players
+  state.players.forEach((player) => {
+    if (!player.alive || player.hp >= player.maxHp) return;
+
+    // Check if near own base for boosted regen
+    const base = state.bases.get(String(player.teamIndex));
+    let regenRate = PLAYER_REGEN_PER_SEC + player.bonusRegen;
+    if (base && !base.destroyed) {
+      const distToBase = distance(player.x, player.y, base.x, base.y);
+      if (distToBase <= PLAYER_BASE_REGEN_RANGE) {
+        regenRate = PLAYER_BASE_REGEN_PER_SEC + player.bonusRegen;
+      }
+    }
+
+    player.hp = Math.min(player.maxHp, player.hp + regenRate * dt);
   });
 
   // Clear attack flags from previous tick
@@ -67,7 +169,8 @@ export function updateCombat(state: GameState, dt: number) {
 
     if (!target) return;
 
-    applyDamage(state, player, target, PLAYER_ATTACK_DAMAGE);
+    const effectiveDamage = PLAYER_ATTACK_DAMAGE + player.bonusDamage;
+    applyDamage(state, player, target, effectiveDamage);
     player.attackCooldown = PLAYER_ATTACK_COOLDOWN;
     player.isAttacking = true;
   });
@@ -102,8 +205,31 @@ export function updateCombat(state: GameState, dt: number) {
       return;
     }
 
-    applyDamageFromMinion(state, minion, targetEntity, MINION_ATTACK_DAMAGE);
-    minion.attackCooldown = MINION_ATTACK_COOLDOWN;
+    const isCaster = minion.minionType === 'caster';
+    const attackDamage = isCaster ? CASTER_MINION_ATTACK_DAMAGE : MELEE_MINION_ATTACK_DAMAGE;
+    const attackRange = isCaster ? CASTER_MINION_ATTACK_RANGE : MELEE_MINION_ATTACK_RANGE;
+    const attackCooldown = isCaster ? CASTER_MINION_ATTACK_COOLDOWN : MELEE_MINION_ATTACK_COOLDOWN;
+
+    // Check range before attacking
+    const targetPos = getTargetPosition(state, targetEntity);
+    if (!targetPos) return;
+    const dist = distance(minion.x, minion.y, targetPos.x, targetPos.y);
+    if (dist > attackRange + targetPos.radius) return;
+
+    if (isCaster) {
+      // Casters fire projectiles — only target players and minions (not structures)
+      if (targetEntity.kind === 'player' || targetEntity.kind === 'minion') {
+        const targetId = targetEntity.kind === 'player' ? targetEntity.entity.id : targetEntity.entity.id;
+        spawnProjectile(state, minion.x, minion.y, targetId, attackDamage, minion.teamIndex, CASTER_MINION_PROJECTILE_SPEED);
+      } else {
+        // Casters attacking structures deal instant damage like melee
+        applyDamageFromMinion(state, minion, targetEntity, attackDamage);
+      }
+    } else {
+      // Melee deal instant damage
+      applyDamageFromMinion(state, minion, targetEntity, attackDamage);
+    }
+    minion.attackCooldown = attackCooldown;
   });
 
   // Reduce minion cooldowns
@@ -113,7 +239,7 @@ export function updateCombat(state: GameState, dt: number) {
     }
   });
 
-  // Remove dead minions
+  // Remove dead minions and award proximity XP (last-hitting)
   const deadMinions: string[] = [];
   state.minions.forEach((minion, key) => {
     if (minion.hp <= 0) {
@@ -121,6 +247,23 @@ export function updateCombat(state: GameState, dt: number) {
     }
   });
   for (const key of deadMinions) {
+    const minion = state.minions.get(key);
+    if (minion) {
+      // Award proximity XP to nearby enemy players (last-hit mechanic)
+      // Players who last-hit already got XP_PER_MINION_KILL above, so
+      // check if anyone got a last-hit bonus via playerLastHitMinions
+      const lastHitter = playerLastHitMinions.get(key);
+      state.players.forEach((player) => {
+        if (!player.alive) return;
+        if (player.teamIndex === minion.teamIndex) return; // Same team — no XP
+        if (player.id === lastHitter) return; // Already got full last-hit XP
+        const dist = distance(player.x, player.y, minion.x, minion.y);
+        if (dist <= XP_NEARBY_RANGE) {
+          awardXP(player, XP_PER_MINION_NEARBY);
+        }
+      });
+      playerLastHitMinions.delete(key);
+    }
     state.minions.delete(key);
   }
 }
@@ -129,7 +272,8 @@ type CombatTarget =
   | { kind: 'player'; entity: Player }
   | { kind: 'minion'; entity: Minion }
   | { kind: 'objective' }
-  | { kind: 'base'; teamIndex: number };
+  | { kind: 'base'; teamIndex: number }
+  | { kind: 'tower'; towerKey: string };
 
 function getTargetPosition(
   state: GameState,
@@ -146,6 +290,11 @@ function getTargetPosition(
       const base = state.bases.get(String(target.teamIndex));
       if (!base) return null;
       return { x: base.x, y: base.y, radius: BASE_RADIUS };
+    }
+    case 'tower': {
+      const tower = state.towers.get(target.towerKey);
+      if (!tower) return null;
+      return { x: tower.x, y: tower.y, radius: TOWER_RADIUS };
     }
   }
 }
@@ -195,6 +344,16 @@ function findNearestEnemyInRange(
     }
   });
 
+  // Check towers (neutral — always enemies)
+  state.towers.forEach((tower, key) => {
+    if (tower.destroyed) return;
+    const dist = distance(attacker.x, attacker.y, tower.x, tower.y);
+    if (dist <= range + TOWER_RADIUS && dist < nearestDist) {
+      nearestDist = dist;
+      nearest = { kind: 'tower', towerKey: key };
+    }
+  });
+
   return nearest;
 }
 
@@ -205,19 +364,28 @@ function applyDamage(
   damage: number
 ) {
   switch (target.kind) {
-    case 'player':
-      target.entity.hp -= damage;
+    case 'player': {
+      const effectiveDamage = Math.max(1, damage - target.entity.bonusDefense);
+      target.entity.hp -= effectiveDamage;
       if (target.entity.hp <= 0) {
         killPlayer(state, target.entity);
+        awardXP(attacker, XP_PER_PLAYER_KILL);
       }
       break;
+    }
     case 'minion':
       target.entity.hp -= damage;
+      if (target.entity.hp <= 0) {
+        // Last-hit! Full XP for the killing blow
+        awardXP(attacker, XP_PER_MINION_KILL);
+        playerLastHitMinions.set(target.entity.id, attacker.id);
+      }
       break;
     case 'objective':
       state.objective.hp -= damage;
       const current = state.objective.damageByTeam.get(String(attacker.teamIndex)) ?? 0;
       state.objective.damageByTeam.set(String(attacker.teamIndex), current + damage);
+      awardXP(attacker, XP_PER_STRUCTURE_HIT);
       break;
     case 'base': {
       const base = state.bases.get(String(target.teamIndex));
@@ -228,9 +396,42 @@ function applyDamage(
           base.capturedByTeam = attacker.teamIndex;
         }
       }
+      awardXP(attacker, XP_PER_STRUCTURE_HIT);
+      break;
+    }
+    case 'tower': {
+      const tower = state.towers.get(target.towerKey);
+      if (tower) {
+        tower.hp -= damage;
+        if (tower.hp <= 0) {
+          tower.hp = 0;
+          tower.destroyed = true;
+          // Big XP reward for destroying a tower — shared to all nearby teammates
+          awardTowerKillXP(state, attacker);
+        }
+      }
+      awardXP(attacker, XP_PER_STRUCTURE_HIT);
       break;
     }
   }
+}
+
+/**
+ * Award tower kill XP to the killer and nearby teammates.
+ */
+function awardTowerKillXP(state: GameState, killer: Player) {
+  // Award to killer
+  awardXP(killer, XP_PER_TOWER_KILL);
+
+  // Also award to nearby teammates (within 600px)
+  state.players.forEach((other) => {
+    if (other.id === killer.id) return;
+    if (other.teamIndex !== killer.teamIndex || !other.alive) return;
+    const dist = distance(killer.x, killer.y, other.x, other.y);
+    if (dist <= 600) {
+      awardXP(other, XP_PER_TOWER_KILL);
+    }
+  });
 }
 
 function applyDamageFromMinion(
@@ -240,12 +441,14 @@ function applyDamageFromMinion(
   damage: number
 ) {
   switch (target.kind) {
-    case 'player':
-      target.entity.hp -= damage;
+    case 'player': {
+      const effectiveDamage = Math.max(1, damage - target.entity.bonusDefense);
+      target.entity.hp -= effectiveDamage;
       if (target.entity.hp <= 0) {
         killPlayer(state, target.entity);
       }
       break;
+    }
     case 'minion':
       target.entity.hp -= damage;
       break;
@@ -265,6 +468,17 @@ function applyDamageFromMinion(
       }
       break;
     }
+    case 'tower': {
+      const tower = state.towers.get(target.towerKey);
+      if (tower) {
+        tower.hp -= damage;
+        if (tower.hp <= 0) {
+          tower.hp = 0;
+          tower.destroyed = true;
+        }
+      }
+      break;
+    }
   }
 }
 
@@ -274,6 +488,13 @@ function findEntityById(state: GameState, id: string): CombatTarget | null {
     const teamIndex = parseInt(id.replace('base_', ''), 10);
     const base = state.bases.get(String(teamIndex));
     if (base && !base.destroyed) return { kind: 'base', teamIndex };
+    return null;
+  }
+
+  if (id.startsWith('tower_')) {
+    const key = id.replace('tower_', '');
+    const tower = state.towers.get(key);
+    if (tower && !tower.destroyed) return { kind: 'tower', towerKey: key };
     return null;
   }
 
@@ -300,11 +521,13 @@ function respawnPlayer(state: GameState, player: Player) {
   player.alive = true;
   player.hp = player.maxHp;
 
-  // Respawn at base
-  player.x = base.x;
-  player.y = base.y;
-  player.targetX = base.x;
-  player.targetY = base.y;
+  // Respawn at base with random offset to prevent stacking
+  const offsetX = (Math.random() - 0.5) * 60;
+  const offsetY = (Math.random() - 0.5) * 60;
+  player.x = base.x + offsetX;
+  player.y = base.y + offsetY;
+  player.targetX = player.x;
+  player.targetY = player.y;
 }
 
 /**

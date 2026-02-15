@@ -4,11 +4,14 @@ import { Player } from '../state/Player';
 import { Team } from '../state/Team';
 import { Base } from '../state/Base';
 import { CentralObjective } from '../state/CentralObjective';
+import { Tower } from '../state/Tower';
 import { updateMovement } from '../systems/MovementSystem';
-import { updateCombat, checkTeamElimination } from '../systems/CombatSystem';
-import { updateMinionAI, spawnMinionWave } from '../systems/MinionAI';
+import { updateCombat, checkTeamElimination, applyUpgrade, UpgradeType } from '../systems/CombatSystem';
+import { updateMinionAI, spawnMinionWave, spawnObjectiveMinionWave, spawnTowerMinionWave } from '../systems/MinionAI';
 import { updateCollisions } from '../systems/CollisionSystem';
 import { checkWinConditions } from '../systems/WinCondition';
+import { updateBotAI } from '../systems/BotAI';
+import { updateStructureAttacks, updateProjectiles } from '../systems/StructureSystem';
 import {
   TICK_INTERVAL,
   NUM_TEAMS,
@@ -17,6 +20,13 @@ import {
   MAP_RADIUS,
   OBJECTIVE_HP,
   BASE_HP,
+  OBJECTIVE_MINION_SPAWN_INTERVAL,
+  TOWER_HP,
+  TOWER_RADIUS_PERCENT,
+  TOWER_MINION_SPAWN_INTERVAL,
+  MINION_SPAWN_INTERVAL,
+  PLAYERS_PER_TEAM,
+  XP_BASE,
 } from '../shared/constants';
 
 interface MoveInput {
@@ -45,6 +55,8 @@ type PlayerInput = MoveInput | AbilityInput | AttackInput | StopInput;
 export class GameRoom extends Room<GameState> {
   private gameLoopInterval: ReturnType<typeof setInterval> | null = null;
   private minionSpawnTimer: number = 0;
+  private objectiveMinionTimer: number = 0;
+  private towerMinionTimer: number = 0;
   private inputQueue: Map<string, PlayerInput[]> = new Map();
   private expectedPlayers: number = 0;
   private teamAssignments: Record<string, number> = {};
@@ -65,10 +77,32 @@ export class GameRoom extends Room<GameState> {
       queue.push(input);
       this.inputQueue.set(client.sessionId, queue);
     });
+
+    this.onMessage('levelUpChoice', (client, data: { choice: string }) => {
+      const player = this.state.players.get(client.sessionId);
+      if (!player || !player.pendingLevelUp) return;
+      if (data.choice !== player.pendingChoices[0] && data.choice !== player.pendingChoices[1]) return;
+      applyUpgrade(player, data.choice as UpgradeType);
+    });
   }
 
   onJoin(client: Client, options: { teamIndex?: number }) {
+    // If this player already exists (reconnection), just restore them
+    const existing = this.state.players.get(client.sessionId);
+    if (existing) {
+      existing.alive = true;
+      this.inputQueue.set(client.sessionId, []);
+      return;
+    }
+
     const teamIndex = options.teamIndex ?? this.assignTeam();
+
+    // Count existing members on this team to determine slot index
+    let slotIndex = 0;
+    this.state.players.forEach((p) => {
+      if (p.teamIndex === teamIndex) slotIndex++;
+    });
+
     const player = new Player();
     player.id = client.sessionId;
     player.sessionId = client.sessionId;
@@ -76,8 +110,8 @@ export class GameRoom extends Room<GameState> {
     player.hp = PLAYER_HP;
     player.maxHp = PLAYER_HP;
 
-    // Spawn at team's base position
-    const spawn = this.getTeamSpawnPosition(teamIndex);
+    // Spawn at team's base position with slot offset
+    const spawn = this.getTeamSpawnPosition(teamIndex, slotIndex);
     player.x = spawn.x;
     player.y = spawn.y;
     player.targetX = spawn.x;
@@ -151,6 +185,21 @@ export class GameRoom extends Room<GameState> {
       this.state.bases.set(String(i), base);
     }
 
+    // Create lane towers (neutral, one per lane)
+    for (let i = 0; i < NUM_TEAMS; i++) {
+      const angle = (i / NUM_TEAMS) * Math.PI * 2 - Math.PI / 2;
+      const tower = new Tower();
+      tower.id = `tower_${i}`;
+      tower.teamIndex = -1; // Neutral
+      tower.laneTeamIndex = i;
+      const towerDist = MAP_RADIUS * TOWER_RADIUS_PERCENT;
+      tower.x = MAP_RADIUS + Math.cos(angle) * towerDist;
+      tower.y = MAP_RADIUS + Math.sin(angle) * towerDist;
+      tower.hp = TOWER_HP;
+      tower.maxHp = TOWER_HP;
+      this.state.towers.set(String(i), tower);
+    }
+
     // Create central objective
     this.state.objective.x = MAP_RADIUS;
     this.state.objective.y = MAP_RADIUS;
@@ -163,9 +212,17 @@ export class GameRoom extends Room<GameState> {
     }
   }
 
-  private getTeamSpawnPosition(teamIndex: number): { x: number; y: number } {
-    const angle = (teamIndex / NUM_TEAMS) * Math.PI * 2 - Math.PI / 2;
+  private getTeamSpawnPosition(teamIndex: number, slotIndex: number = 0): { x: number; y: number } {
+    const baseAngle = (teamIndex / NUM_TEAMS) * Math.PI * 2 - Math.PI / 2;
     const spawnRadius = MAP_RADIUS * 0.75;
+
+    // Spread multiple slots in an arc (±0.08 radians)
+    const arcSpread = 0.08;
+    const slotOffset = PLAYERS_PER_TEAM > 1
+      ? (slotIndex - (PLAYERS_PER_TEAM - 1) / 2) * (arcSpread * 2 / (PLAYERS_PER_TEAM - 1))
+      : 0;
+    const angle = baseAngle + slotOffset;
+
     return {
       x: MAP_RADIUS + Math.cos(angle) * spawnRadius,
       y: MAP_RADIUS + Math.sin(angle) * spawnRadius,
@@ -186,11 +243,54 @@ export class GameRoom extends Room<GameState> {
   }
 
   private startGame() {
+    // Guard against double-invocation
+    if (this.gameLoopInterval || this.state.phase === 'playing') return;
+
+    // Fill empty teams with AI bots
+    this.createBots();
+
     this.state.phase = 'playing';
 
     this.gameLoopInterval = setInterval(() => {
       this.gameTick();
     }, TICK_INTERVAL);
+  }
+
+  private createBots() {
+    // Count existing players per team
+    const teamCounts = new Array(NUM_TEAMS).fill(0);
+    this.state.players.forEach((player) => {
+      if (player.teamIndex >= 0) teamCounts[player.teamIndex]++;
+    });
+
+    // Fill each team to PLAYERS_PER_TEAM with bots
+    for (let i = 0; i < NUM_TEAMS; i++) {
+      const existing = teamCounts[i];
+      for (let slot = existing; slot < PLAYERS_PER_TEAM; slot++) {
+        const botId = `bot_${i}_${slot}`;
+        const player = new Player();
+        player.id = botId;
+        player.sessionId = botId;
+        player.teamIndex = i;
+        player.hp = PLAYER_HP;
+        player.maxHp = PLAYER_HP;
+        player.isBot = true;
+
+        const spawn = this.getTeamSpawnPosition(i, slot);
+        player.x = spawn.x;
+        player.y = spawn.y;
+        player.targetX = spawn.x;
+        player.targetY = spawn.y;
+        player.alive = true;
+
+        this.state.players.set(botId, player);
+
+        const team = this.state.teams[i];
+        if (team) {
+          team.playerIds.push(botId);
+        }
+      }
+    }
   }
 
   private gameTick() {
@@ -201,6 +301,9 @@ export class GameRoom extends Room<GameState> {
     // 1. Process inputs
     this.processInputs();
 
+    // 1.5. Update bot AI (sets attackTargetId for bots)
+    updateBotAI(this.state, dt);
+
     // 2. Update movement
     updateMovement(this.state, dt);
 
@@ -210,20 +313,40 @@ export class GameRoom extends Room<GameState> {
     // 4. Resolve collisions
     updateCollisions(this.state);
 
-    // 5. Resolve combat
+    // 5. Structure attacks (bases + objective fire projectiles)
+    updateStructureAttacks(this.state, dt);
+
+    // 6. Move projectiles, apply damage on arrival
+    updateProjectiles(this.state, dt);
+
+    // 7. Resolve combat
     updateCombat(this.state, dt);
 
-    // 6. Check team elimination (base destroyed + all players dead)
+    // 8. Check team elimination (base destroyed + all players dead)
     checkTeamElimination(this.state);
 
-    // 7. Spawn minions on timer
+    // 9. Spawn minions on timer
     this.minionSpawnTimer += TICK_INTERVAL;
-    if (this.minionSpawnTimer >= 30000) { // every 30 seconds
+    if (this.minionSpawnTimer >= MINION_SPAWN_INTERVAL) {
       spawnMinionWave(this.state);
       this.minionSpawnTimer = 0;
     }
 
-    // 8. Check win conditions
+    // 10. Spawn objective minions on timer
+    this.objectiveMinionTimer += TICK_INTERVAL;
+    if (this.objectiveMinionTimer >= OBJECTIVE_MINION_SPAWN_INTERVAL) {
+      spawnObjectiveMinionWave(this.state);
+      this.objectiveMinionTimer = 0;
+    }
+
+    // 10.5. Spawn tower minions on timer
+    this.towerMinionTimer += TICK_INTERVAL;
+    if (this.towerMinionTimer >= TOWER_MINION_SPAWN_INTERVAL) {
+      spawnTowerMinionWave(this.state);
+      this.towerMinionTimer = 0;
+    }
+
+    // 11. Check win conditions
     const winner = checkWinConditions(this.state);
     if (winner !== null) {
       this.state.phase = 'finished';
@@ -241,6 +364,20 @@ export class GameRoom extends Room<GameState> {
         this.gameLoopInterval = null;
       }
     }
+
+    // 12. Notify clients of pending level-ups
+    this.state.players.forEach((player, sessionId) => {
+      if (player.pendingLevelUp && !player.pendingLevelUpNotified && !player.isBot) {
+        const client = this.clients.find(c => c.sessionId === sessionId);
+        if (client) {
+          client.send('levelUpChoices', {
+            level: player.level,
+            choices: player.pendingChoices,
+          });
+          player.pendingLevelUpNotified = true;
+        }
+      }
+    });
 
     this.state.tick++;
   }

@@ -41,19 +41,86 @@ This file describes the AI agents that have contributed to this project and thei
 - **Objective HP reduced to 500** for faster testing (was 10,000)
 - **Learned Phaser lesson**: Interactive objects inside Containers with `setScrollFactor(0)` have broken hit areas — placed victory UI elements directly on the scene instead
 
-### What was NOT done (as of Session 3)
+### Session 4 — Sprite Art, Collision, Combat Animations (2026-02-13)
+
+- **Sprite art integration**: Replaced all placeholder circles with real sprites — soldier (idle/walk/attack/death) for players, orc for minions, statue for bases. Added PreloadScene for asset loading.
+- **Collision detection**: Created `CollisionSystem.ts` — circle-circle separation for player↔player, player↔minion, minion↔minion. Mobile entities pushed away from static entities (bases, objective). Friendly bases and captured bases passable for owning/capturing team.
+- **Auto-attack animations**: Added `isAttacking` boolean pulse to Player schema. Server sets true on damage tick, clears next tick. Client plays one-shot `soldier-attack` / `orc-attack` animation when flag is set.
+- **Minion HP bars**: 30x3px colored bar (green/yellow/red) above each minion sprite.
+- **Minion attack range tuned**: Reduced `MINION_ATTACK_RANGE` from 40 to 20 (aggro range stays 150).
+
+### Session 5 — Base Capture, Click-to-Attack, Cursors, AI Bots (2026-02-13)
+
+- **Base capture mechanic**: Destroying a base no longer eliminates the team immediately. Instead, the base is captured (`capturedByTeam`), the capturing team spawns minions from it, and the losing team can no longer respawn. Team is eliminated only when base destroyed AND all players dead.
+- **Base HP bars**: 50x5px team-colored HP bars above each base.
+- **Objective HP increased to 10,000** for longer games.
+- **Click-to-attack targeting**: Added `attackTargetId` to Player schema. Click enemy entity → player walks toward it → attacks when in range. Hit testing on client (players > minions > objective > bases). Pulsing orange ring highlights selected target.
+- **Custom SVG cursors**: Sci-fi pointer for normal navigation, sword cursor when hovering over attackable enemies.
+- **AI bot players**: Server-side bots fill empty teams on game start. BotAI system runs each tick — finds nearest enemy (players > minions > bases > objective), sets `attackTargetId`, lets existing Movement/Combat systems handle the rest. Lobby allows solo start with bots filling remaining teams.
+- **Teams reduced to 1 player each** for MVP testing with bots.
+
+### Session 6 — Defensive Structure Projectiles (2026-02-13)
+
+- **Structure attacks**: Bases and the central objective now fire traveling projectiles at enemies within range. Classic MOBA tower aggro — structures prioritize minions over players.
+- **Projectile system**: Created `Projectile` schema (id, position, target, damage, speed, team), `StructureSystem.ts` with targeting + projectile movement/damage, `ProjectileSprite.ts` for client-side glowing orb visuals.
+- **Constants**: `BASE_ATTACK_DAMAGE=40`, `BASE_ATTACK_RANGE=200`, `BASE_ATTACK_COOLDOWN=1500ms`, `OBJECTIVE_ATTACK_DAMAGE=50`, `OBJECTIVE_ATTACK_RANGE=250`, `OBJECTIVE_ATTACK_COOLDOWN=1000ms`, `PROJECTILE_SPEED=400`.
+- Captured bases fire for the capturing team. Objective fires at all teams.
+
+### Session 6 continued — Objective Minion Waves (2026-02-13)
+
+- **Objective minion spawning**: Central objective spawns neutral minions (teamIndex -1) every 45 seconds. Each wave sends 2 minions per active base. Minions walk outward from center toward their target base, aggro on nearby enemies, and attack bases on arrival.
+- Updated `walkTowardCenter` to support outward-bound pathing for neutral minions.
+- Neutral minions skip objective aggro (they belong to it) but aggro on all team bases.
+
+### Session 7 — Smarter Bot AI & HP Regeneration (2026-02-13)
+
+- **HP regeneration**: All players (humans + bots) regenerate HP. Baseline 2 HP/sec everywhere, boosted to 10 HP/sec when near own base (within 200px). Makes retreat a meaningful strategic choice.
+- **Bot retreat behavior**: Bots disengage and run to their base when HP drops below 30%. They heal up at base and then resume attacking.
+- **Minion escort logic**: Bots no longer solo-dive structures. They check for friendly minions near a target structure (within 300px) before engaging. If no minions are present, they hold at a safe distance outside tower attack range and wait.
+- **Base defense priority**: Bots detect enemies (players or minions) near their own base (within 400px) and prioritize defending it, interrupting whatever they were doing.
+- **Decision cooldown**: Bots re-evaluate targets every 2 seconds instead of every tick, preventing erratic target-switching. Urgent interrupts (low HP, base under attack, target dies) trigger immediate re-evaluation.
+
+### Session 8 — Neutral Lane Towers (2026-02-14)
+
+- **Neutral aggressive towers**: Added 4 neutral lane towers (1 per lane) positioned at 50% of MAP_RADIUS from center along each team's lane angle. Towers are neutral (teamIndex -1) — they attack any team's units within range.
+- **Tower minion spawning**: Each tower spawns 2 neutral minions every 40 seconds that walk outward toward the base in that lane. Minions behave identically to objective minions (teamIndex -1, hostile to all).
+- **Tower combat**: Towers fire projectiles using the existing StructureSystem pattern — prioritize minions over players, same projectile visuals. Towers take damage from players and minions, and stay permanently destroyed.
+- **Bot AI lane progression**: Bots now follow a natural lane progression: enemy players > enemy minions > own lane tower > enemy bases > objective. Bots use existing minion-escort logic when approaching towers.
+- **Team minion tower aggro**: Team minions now aggro on neutral towers as they walk toward center, creating organic lane fights.
+- **Client rendering**: Towers rendered as gray circles with inner core detail, HP bars, destroyed rubble state. Click-to-attack works on towers. Subtle gray dots on map background show tower positions.
+- **12 files modified**: constants.ts, Tower.ts, GameState.ts, GameRoom.ts, StructureSystem.ts, CombatSystem.ts, MovementSystem.ts, MinionAI.ts, CollisionSystem.ts, BotAI.ts, GameScene.ts, synced client constants.
+
+### Session 9 — Map Scaling, Minion Tuning, QoL, Leveling (2026-02-14)
+
+- **Map scaling**: Increased `MAP_RADIUS` from 2000 to 3500, reduced `PLAYER_SPEED` from 150 to 130, set initial camera zoom to 0.7x. Cross-map travel now takes ~54s instead of ~13s.
+- **Minion wave tuning**: `MINIONS_PER_WAVE` 3→5, `MINION_SPAWN_INTERVAL` 30000→20000ms, `OBJECTIVE_MINIONS_PER_BASE` 2→3, `TOWER_MINIONS_PER_WAVE` 2→3. Creates denser lane skirmishes.
+- **Minion death animations**: `playDeathAndDestroy()` on MinionSprite plays orc-death before cleanup. Sprite removed from tracking map immediately but Phaser objects persist until animation completes (1s safety timeout).
+- **Floating damage numbers**: Client-side `prevHp` tracking for all entity types. `spawnDamageNumber()` creates Phaser text with tween (drift up 30px + fade, 800ms). Color-coded: red for allies, white for enemies, orange for objective, gray for towers.
+- **Minimap**: 160px circular overlay (bottom-right) with all entities. Click-to-move converts minimap coords to world coords. Window resize handler for background redraw.
+- **Leveling system**: Full XP/level-up system across 12 files:
+  - Player schema: `level`, `xp`, `xpToNextLevel`, 5 bonus stat fields, server-only pending level-up state
+  - CombatSystem: `awardXP()` on kills/structure hits, `generateUpgradeChoices()` picks 2 random from 5, `applyUpgrade()` applies stat bonuses. Bots auto-pick. `bonusDamage` added to attack, `bonusDefense` reduces incoming damage (min 1), `bonusRegen` added to HP regen.
+  - MovementSystem: `bonusSpeed` applied to movement
+  - StructureSystem: `bonusDefense` applied to projectile damage
+  - GameRoom: `levelUpChoice` message handler, tick-based level-up notification
+  - ColyseusClient: `sendMessage()` method for typed messages
+  - HUDScene: Level text + XP bar (bottom-left), level-up popup with 2 upgrade buttons (hover effect, labeled with stat values)
+- **Bug fix**: GameRoom used hardcoded `30000` instead of `MINION_SPAWN_INTERVAL` constant
+
+### What was NOT done (as of Session 9)
 
 - No Colyseus schema codegen — client state listeners still use `any` types
-- No real art, tilemaps, or Tiled integration
+- No tilemaps or Tiled integration
 - No client-side prediction or interpolation tuning
 - No ability system implementation
-- No minion pathfinding improvements (still walks straight to center)
+- No minion pathfinding improvements (still walks straight to destination)
+- No fog of war (bots can "see" the whole map, but so can human players) — **next priority**
 
 ### Patterns and conventions established
 
 - Server-authoritative model: clients send inputs, server validates and broadcasts state
 - Fixed timestep game loop at 20 ticks/second
-- Systems architecture: MovementSystem, CombatSystem, MinionAI, WinCondition as pure functions operating on GameState
+- Systems architecture: MovementSystem, CombatSystem, MinionAI, CollisionSystem, BotAI, StructureSystem, WinCondition as pure functions operating on GameState. CombatTarget discriminated union pattern for entity resolution.
 - Client sprites wrap Phaser game objects and update via `updateFromState()` from Colyseus state listeners
 - Shared constants live in `server/src/shared/` and sync to `client/src/shared/` via `sync.sh`
 - Reconnection uses `sessionStorage` for browser-refresh survival and in-memory tokens for network-drop recovery

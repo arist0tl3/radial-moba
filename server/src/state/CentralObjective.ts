@@ -6,4 +6,5 @@ export class CentralObjective extends Schema {
   @type('number') hp: number = 0;
   @type('number') maxHp: number = 0;
   @type({ map: 'number' }) damageByTeam = new MapSchema<number>();
+  @type('number') attackCooldown: number = 0;
 }

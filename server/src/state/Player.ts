@@ -17,4 +17,22 @@ export class Player extends Schema {
   @type('number') deaths: number = 0;
   @type('boolean') isAttacking: boolean = false;
   @type('string') attackTargetId: string = '';
+  @type('boolean') isBot: boolean = false;
+
+  // Leveling
+  @type('number') level: number = 1;
+  @type('number') xp: number = 0;
+  @type('number') xpToNextLevel: number = 100;
+  @type('number') bonusDamage: number = 0;
+  @type('number') bonusMaxHp: number = 0;
+  @type('number') bonusSpeed: number = 0;
+  @type('number') bonusRegen: number = 0;
+  @type('number') bonusDefense: number = 0;
+
+  // Server-only (not synced to client) — bot decision cooldown timer
+  botDecisionTimer: number = 0;
+  // Server-only — level-up state
+  pendingLevelUp: boolean = false;
+  pendingLevelUpNotified: boolean = false;
+  pendingChoices: [string, string] = ['', ''];
 }
